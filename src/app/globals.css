@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/*
+  Mello Studio — dark direction.
+
+  Two references set this: a full-bleed artwork mosaic under an oversized
+  wordmark for the landing, and a near-black retail surface for the shop.
+
+  The accent is used almost nowhere. On a near-black ground the artwork
+  supplies every bit of colour on the page, and an accent competing with it
+  would flatten the one thing worth looking at. Violet appears only on focus
+  rings and small live states.
+*/
+
+@theme {
+  --color-void: #0a0a0b;
+  --color-surface: #131315;
+  --color-surface-2: #1c1c1f;
+  --color-bone: #ece1d2;
+  --color-muted: #8a8a8f;
+  --color-rule: #2a2a2e;
+  --color-iris: #8b7bf5;
+
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; background-color: var(--color-void); }
+  body {
+    background-color: var(--color-void);
+    color: var(--color-bone);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background-color: var(--color-bone); color: var(--color-void); }
+  :focus-visible { outline: 2px solid var(--color-iris); outline-offset: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Catalogue label — carried over from the gallery direction. It survives the
+   move to dark and keeps product copy honest by showing real record fields. */
+.wall-label {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+}
+
+.eyebrow {
+  font-family: var(--font-data);
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.btn-ghost {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-rule);
+  padding: 0.625rem 1.125rem;
+  color: var(--color-bone);
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-bone);
+  border-color: var(--color-bone);
+  color: var(--color-void);
+}
+.btn-ghost:disabled { color: var(--color-muted); cursor: not-allowed; }
+
+.btn-solid {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background-color: var(--color-bone);
+  color: var(--color-void);
+  padding: 0.75rem 1.5rem;
+  transition: opacity 200ms ease;
+}
+.btn-solid:hover { opacity: 0.85; }
+
+/* Mosaic tiles sit dim until hovered, so the wordmark stays legible over them
+   and the grid reads as one field rather than eight competing images. */
+.mosaic-tile img {
+  filter: brightness(0.62) saturate(1.05);
+  transition: filter 600ms cubic-bezier(0.22,1,0.36,1), transform 600ms cubic-bezier(0.22,1,0.36,1);
+}
+.mosaic-tile:hover img { filter: brightness(1) saturate(1.1); transform: scale(1.03); }
