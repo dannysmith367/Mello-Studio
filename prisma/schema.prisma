@@ -1,0 +1,623 @@
+// Mello Studio — data model
+// Principle: we own the business data. Printify is a fulfillment provider.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection for the app; direct connection for migrations.
+  // Supabase pools through PgBouncer, which cannot run DDL.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AssetKind {
+  ORIGINAL // never touched, never served to the browser
+  WEB // optimized display image
+  THUMBNAIL
+  PRINT_FILE // print-ready derivative for a specific crop / print area
+  MOCKUP // provider-generated or photographed product shot
+}
+
+enum ProductCategory {
+  APPAREL
+  PRINT
+  ACCESSORY
+}
+
+enum CollectionKind {
+  SERIES // permanent, thematic, grows over time
+  DROP // timed, may be edition-limited
+}
+
+enum FulfillmentProviderKey {
+  PRINTIFY
+  PRINTFUL
+  MANUAL // originals, or anything shipped by hand
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  FULFILLMENT_PENDING
+  SUBMITTED_TO_FULFILLMENT
+  IN_PRODUCTION
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  SUBMITTED
+  IN_PRODUCTION
+  SHIPPED
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+// ---------------------------------------------------------------------------
+// Admin users
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+// Server-side sessions. The cookie carries a random token; only its SHA-256
+// hash is stored, so a database leak does not hand over live sessions.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String   @unique
+  expiresAt DateTime
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Artwork — the master creative asset. Reusable across many products.
+// ---------------------------------------------------------------------------
+
+model Artwork {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String?
+  yearCreated Int?
+  medium      String? // "Acrylic on canvas", "Graphite on paper"
+  status      PublishStatus @default(DRAFT)
+  featured    Boolean       @default(false)
+
+  seoTitle       String?
+  seoDescription String?
+
+  assets      ArtworkAsset[]
+  products    Product[]
+  collections CollectionArtwork[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, featured])
+  @@map("artworks")
+}
+
+// Every file belonging to an artwork. One artwork, many assets.
+// This split is what lets a hoodie chest print and a full-bleed poster
+// come from the same artwork without fighting over one file.
+model ArtworkAsset {
+  id        String  @id @default(cuid())
+  artworkId String
+  artwork   Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  kind       AssetKind
+  storageKey String // object storage key — source of truth
+  url        String? // public/CDN URL where applicable
+
+  width    Int?
+  height   Int?
+  dpi      Int?
+  hasAlpha Boolean @default(false)
+  mimeType String?
+  bytes    Int?
+
+  // Which crop this derivative represents: "square-chest",
+  // "portrait-fullbleed", "diecut". Null for originals.
+  cropLabel String?
+  altText   String?
+
+  productsUsingAsPrint Product[]        @relation("ProductPrintAsset")
+  variantsUsingAsPrint ProductVariant[] @relation("VariantPrintAsset")
+  collectionsUsingAsCover Collection[]  @relation("CollectionCover")
+
+  createdAt DateTime @default(now())
+
+  @@index([artworkId, kind])
+  @@map("artwork_assets")
+}
+
+// ---------------------------------------------------------------------------
+// Collections — one table. Nulls mean "series"; dates/limits mean "drop".
+// ---------------------------------------------------------------------------
+
+model Collection {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String?
+  kind        CollectionKind @default(SERIES)
+
+  opensAt      DateTime?
+  closesAt     DateTime?
+  editionLimit Int?
+
+  coverAssetId String?
+  coverAsset   ArtworkAsset? @relation("CollectionCover", fields: [coverAssetId], references: [id])
+
+  published Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  seoTitle       String?
+  seoDescription String?
+
+  artworks CollectionArtwork[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, sortOrder])
+  @@map("collections")
+}
+
+model CollectionArtwork {
+  collectionId String
+  artworkId    String
+  sortOrder    Int    @default(0)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  artwork    Artwork    @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, artworkId])
+  @@map("collection_artworks")
+}
+
+// ---------------------------------------------------------------------------
+// Product types — a table, not an enum. Adding "hat" is a row, not a migration.
+// ---------------------------------------------------------------------------
+
+model ProductType {
+  id                   String          @id @default(cuid())
+  name                 String // "Heavyweight Hoodie"
+  slug                 String          @unique
+  category             ProductCategory
+  requiresTransparency Boolean         @default(false)
+
+  defaultPrintWidthIn  Float?
+  defaultPrintHeightIn Float?
+  sortOrder            Int             @default(0)
+
+  products Product[]
+
+  @@index([category])
+  @@map("product_types")
+}
+
+// ---------------------------------------------------------------------------
+// Products & variants
+// ---------------------------------------------------------------------------
+
+model Product {
+  id        String  @id @default(cuid())
+  artworkId String
+  artwork   Artwork @relation(fields: [artworkId], references: [id])
+
+  productTypeId String
+  productType   ProductType @relation(fields: [productTypeId], references: [id])
+
+  // Which derivative feeds the printer. Variants may override.
+  printAssetId String?
+  printAsset   ArtworkAsset? @relation("ProductPrintAsset", fields: [printAssetId], references: [id])
+
+  name        String
+  slug        String  @unique
+  description String?
+
+  // Money is always integer cents. Never floats.
+  baseCostCents    Int // what the provider charges us
+  retailPriceCents Int // what we charge
+
+  fulfillmentProvider FulfillmentProviderKey @default(PRINTIFY)
+  providerProductId   String? // null until pushed to the provider
+  providerShopId      String?
+
+  published Boolean @default(false)
+  featured  Boolean @default(false)
+
+  seoTitle       String?
+  seoDescription String?
+
+  variants   ProductVariant[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, featured])
+  @@index([artworkId])
+  @@index([productTypeId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  size     String?
+  color    String?
+  colorHex String?
+
+  sku               String  @unique
+  providerVariantId String?
+
+  // Null = inherit from product. Set for e.g. a dark-garment print file.
+  priceOverrideCents Int?
+  printAssetId       String?
+  printAsset         ArtworkAsset? @relation("VariantPrintAsset", fields: [printAssetId], references: [id])
+
+  active Boolean @default(true)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, active])
+  @@map("product_variants")
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id        String  @id @default(cuid())
+  email     String  @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+
+  stripeCustomerId String? @unique
+
+  addresses Address[]
+  orders    Order[]
+  carts     Cart[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customers")
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  firstName  String
+  lastName   String
+  line1      String
+  line2      String?
+  city       String
+  region     String? // state / province
+  postalCode String
+  country    String // ISO 3166-1 alpha-2
+  phone      String?
+
+  shippingOrders Order[] @relation("ShippingAddress")
+  billingOrders  Order[] @relation("BillingAddress")
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id         String  @id @default(cuid())
+  sessionId  String  @unique // anonymous browser session
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  items CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id     String @id @default(cuid())
+  cartId String
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Price is never stored here. It is resolved server-side at checkout.
+  @@unique([cartId, variantId])
+  @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Orders — priced snapshots, never live lookups
+// ---------------------------------------------------------------------------
+
+model Order {
+  id          String @id @default(cuid())
+  orderNumber String @unique // human-facing, e.g. MS-1042
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email      String
+
+  status OrderStatus @default(PENDING_PAYMENT)
+
+  shippingAddressId String?
+  shippingAddress   Address? @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddressId  String?
+  billingAddress    Address? @relation("BillingAddress", fields: [billingAddressId], references: [id])
+
+  subtotalCents Int
+  shippingCents Int @default(0)
+  taxCents      Int @default(0)
+  discountCents Int @default(0)
+  totalCents    Int
+  currency      String @default("usd")
+
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+
+  items             OrderItem[]
+  payments          Payment[]
+  fulfillmentOrders FulfillmentOrder[]
+
+  confirmationSentAt DateTime?
+  shippingSentAt     DateTime?
+
+  placedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@map("orders")
+}
+
+// A frozen snapshot. Changing a product price later must never rewrite history.
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  // Snapshot fields — populated at purchase, never updated afterwards.
+  productName  String
+  variantLabel String? // "Black / L"
+  sku          String
+  artworkTitle String?
+  imageUrl     String?
+
+  unitPriceCents Int
+  quantity       Int
+  lineTotalCents Int
+
+  // Where the print file lived at purchase time, for fulfillment replay.
+  printFileUrl String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Payment {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider              String        @default("stripe")
+  providerPaymentId     String        @unique
+  status                PaymentStatus @default(PENDING)
+  amountCents           Int
+  amountRefundedCents   Int           @default(0)
+  currency              String        @default("usd")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Fulfillment — provider-agnostic
+// ---------------------------------------------------------------------------
+
+model FulfillmentOrder {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider          FulfillmentProviderKey
+  providerOrderId   String?
+  status            FulfillmentStatus      @default(PENDING)
+
+  // Guards against duplicate submission from retried webhooks.
+  idempotencyKey String @unique
+
+  submittedAt  DateTime?
+  lastError    String?
+  attemptCount Int       @default(0)
+
+  shipments Shipment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([provider, providerOrderId])
+  @@map("fulfillment_orders")
+}
+
+model Shipment {
+  id                 String           @id @default(cuid())
+  fulfillmentOrderId String
+  fulfillmentOrder   FulfillmentOrder @relation(fields: [fulfillmentOrderId], references: [id], onDelete: Cascade)
+
+  carrier        String?
+  trackingNumber String?
+  trackingUrl    String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fulfillmentOrderId])
+  @@map("shipments")
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks — idempotency ledger. Never process the same event twice.
+// ---------------------------------------------------------------------------
+
+model WebhookEvent {
+  id         String @id @default(cuid())
+  source     String // "stripe" | "printify"
+  externalId String // provider's event id
+  eventType  String
+
+  payload     Json
+  processedAt DateTime?
+  error       String?
+
+  receivedAt DateTime @default(now())
+
+  @@unique([source, externalId])
+  @@index([source, eventType])
+  @@map("webhook_events")
+}
+
+// ---------------------------------------------------------------------------
+// Newsletter — cheap to add, highest-leverage thing on the site
+// ---------------------------------------------------------------------------
+
+// Commission enquiries. Stored rather than emailed, because no email
+// provider is chosen yet — an enquiry must never be silently dropped.
+model CommissionInquiry {
+  id      String @id @default(cuid())
+  name    String
+  email   String
+  phone   String?
+
+  medium      String? // what they have in mind
+  sizeNote    String?
+  budgetRange String?
+  timeline    String?
+  message     String
+
+  status    InquiryStatus @default(NEW)
+  adminNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("commission_inquiries")
+}
+
+enum InquiryStatus {
+  NEW
+  IN_CONVERSATION
+  QUOTED
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+model NewsletterSubscriber {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  source       String? // "footer", "product-page"
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  unsubscribeToken String @unique
+  createdAt    DateTime  @default(now())
+
+  @@map("newsletter_subscribers")
+}
