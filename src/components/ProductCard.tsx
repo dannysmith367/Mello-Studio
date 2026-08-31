@@ -51,10 +51,9 @@ export function ProductCard({
         </Link>
         <p className="mt-1 font-data text-xs text-muted">{formatCents(priceCents)}</p>
 
-        {/* STATUS: PENDING — cart is Phase 7. Inert and labelled rather than faked. */}
-        <button disabled className="btn-ghost mt-3.5 w-full" title="Cart is not built yet">
-          Add to bag
-        </button>
+        <Link href={href} className="btn-ghost mt-3.5 block w-full text-center">
+          View
+        </Link>
       </div>
     </article>
   );
