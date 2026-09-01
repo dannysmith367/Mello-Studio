@@ -27,7 +27,9 @@ export default async function EditProductPage({
   });
   if (!product) notFound();
 
-  const display = displayAsset(product.artwork.assets);
+  const display = displayAsset(product.artwork.assets, {
+    preferMockup: product.productType.category === "APPAREL",
+  });
   const original = product.artwork.assets.find((a) => a.kind === "ORIGINAL");
   const margin = marginCents(product.retailPriceCents, product.baseCostCents);
 

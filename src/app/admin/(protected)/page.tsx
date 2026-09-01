@@ -52,8 +52,8 @@ export default async function AdminOverview() {
         <dl className="mt-4 divide-y divide-rule border-y border-rule font-data text-[0.6875rem] uppercase tracking-[0.14em]">
           {[
             ["Database", "Connected"],
-            ["Artwork upload", "Not built — Phase 4"],
-            ["Cart", "Not built — Phase 7"],
+            ["Artwork upload", "Connected"],
+            ["Cart", "Connected"],
             [
               "Stripe",
               process.env.STRIPE_SECRET_KEY

@@ -60,7 +60,9 @@ export default async function ProductsPage() {
             </thead>
             <tbody>
               {products.map((product) => {
-                const thumb = thumbnailAsset(product.artwork.assets);
+                const thumb = thumbnailAsset(product.artwork.assets, {
+                  preferMockup: product.productType.category === "APPAREL",
+                });
                 const margin = marginCents(product.retailPriceCents, product.baseCostCents);
                 return (
                   <tr key={product.id} className="border-b border-rule last:border-0">

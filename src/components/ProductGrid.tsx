@@ -14,7 +14,7 @@ export type ProductCardData = {
   name: string;
   slug: string;
   retailPriceCents: number;
-  productType: { name: string };
+  productType: { name: string; category: string };
   artwork: { title: string; yearCreated: number | null; assets: DisplayableAsset[] };
 };
 
@@ -33,12 +33,15 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {products.map((product, index) => {
-        const asset = thumbnailAsset(product.artwork.assets);
+        const asset = thumbnailAsset(product.artwork.assets, {
+          preferMockup: product.productType.category === "APPAREL",
+        });
         return (
           <ProductCard
             key={product.id}
             href={`/products/${product.slug}`}
             imageUrl={asset?.url ?? null}
+            imageUnoptimized={asset?.kind === "MOCKUP"}
             alt={asset?.altText ?? product.name}
             name={product.name}
             typeName={product.productType.name}

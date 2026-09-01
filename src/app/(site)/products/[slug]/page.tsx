@@ -15,7 +15,9 @@ export async function generateMetadata({
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Not found" };
 
-  const asset = displayAsset(product.artwork.assets);
+  const asset = displayAsset(product.artwork.assets, {
+    preferMockup: product.productType.category === "APPAREL",
+  });
   return {
     title: product.seoTitle ?? product.name,
     description: product.seoDescription ?? product.description ?? undefined,
@@ -35,7 +37,9 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product || !product.published) notFound();
 
-  const asset = displayAsset(product.artwork.assets);
+  const asset = displayAsset(product.artwork.assets, {
+    preferMockup: product.productType.category === "APPAREL",
+  });
   return (
     <article className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">
       <div className="grid gap-10 md:grid-cols-2 md:gap-16">
@@ -48,6 +52,7 @@ export default async function ProductPage({
               sizes="(max-width: 768px) 100vw, 45vw"
               className="object-cover"
               priority
+              unoptimized={asset.kind === "MOCKUP"}
             />
           )}
         </div>

@@ -9,6 +9,7 @@ import { formatCents } from "@/lib/money";
 export function ProductCard({
   href,
   imageUrl,
+  imageUnoptimized = false,
   alt,
   name,
   typeName,
@@ -17,6 +18,7 @@ export function ProductCard({
 }: {
   href: string;
   imageUrl: string | null;
+  imageUnoptimized?: boolean;
   alt: string;
   name: string;
   typeName: string;
@@ -35,6 +37,7 @@ export function ProductCard({
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
               className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
               priority={priority}
+              unoptimized={imageUnoptimized}
             />
           ) : (
             <div className="flex h-full items-center justify-center font-data text-xs text-muted">

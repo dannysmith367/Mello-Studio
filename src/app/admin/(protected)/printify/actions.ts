@@ -192,8 +192,34 @@ export async function importPrintifyProduct(raw: unknown) {
 
     await db.productVariant.createMany({ data: variantData, skipDuplicates: true });
 
+    // Printify's product shots — the actual garment/print in context, not the
+    // flat artwork file. Stored on the artwork like any other asset; the
+    // default mockup goes first so it's the one storefront pages pick up.
+    const images = remote.images ?? [];
+    const seenSrc = new Set<string>();
+    const orderedImages = [...images]
+      .sort((a, b) => Number(b.is_default ?? false) - Number(a.is_default ?? false))
+      .filter((image) => {
+        if (!image.src || seenSrc.has(image.src)) return false;
+        seenSrc.add(image.src);
+        return true;
+      });
+
+    if (orderedImages.length > 0) {
+      await db.artworkAsset.createMany({
+        data: orderedImages.map((image) => ({
+          artworkId,
+          kind: "MOCKUP" as const,
+          storageKey: image.src,
+          url: image.src,
+          altText: remote.title,
+        })),
+      });
+    }
+
     revalidatePath("/admin/products");
     revalidatePath("/admin/printify");
+    revalidatePath(`/admin/artwork/${artworkId}`);
     return { id: product.id, variantCount: variantData.length };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Import failed." };
