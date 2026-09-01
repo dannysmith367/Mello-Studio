@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/guard";
 import { PrintifyProvider } from "@/lib/fulfillment/printify";
-import type { PrintifyOption, PrintifyProduct, PrintifyVariant } from "@/lib/fulfillment/printify/client";
+import type { PrintifyOption, PrintifyVariant } from "@/lib/fulfillment/printify/client";
 
 const provider = new PrintifyProvider();
 
@@ -65,9 +65,9 @@ export async function listPrintifyProducts() {
       products: products.map((p) => ({
         id: p.id,
         title: p.title,
-        image: p.images.find((i) => i.is_default)?.src ?? p.images[0]?.src ?? null,
-        variantCount: p.variants.filter((v) => v.is_enabled !== false).length,
-        alreadyImported: importedIds.has(p.id),
+image: (p.images ?? []).find((i) => i.is_default)?.src ?? (p.images ?? [])[0]?.src ?? null,
+        variantCount: (p.variants ?? []).filter((v) => v.is_enabled !== false).length,
+                alreadyImported: importedIds.has(p.id),
       })),
     };
   } catch (error) {
@@ -136,8 +136,8 @@ export async function importPrintifyProduct(raw: unknown) {
   }
 
   try {
-    const remote: PrintifyProduct = await provider.client().getProduct(printifyProductId);
-    const enabled = remote.variants.filter((v) => v.is_enabled !== false);
+    const remote = await provider.client().getProduct(printifyProductId);
+    const enabled = (remote.variants ?? []).filter((v) => v.is_enabled !== false);
 
     if (enabled.length === 0) {
       return { error: "That Printify product has no enabled variants." };
@@ -169,7 +169,7 @@ export async function importPrintifyProduct(raw: unknown) {
     // unique within a product, so prefix with our product id.
     const seen = new Set<string>();
     const variantData = enabled.map((variant) => {
-      const { color, colorHex, size } = resolveOptions(variant, remote.options);
+      const { color, colorHex, size } = resolveOptions(variant, (remote.options ?? []) as PrintifyOption[]);
       let sku = variant.sku?.trim() || `${remote.id}-${variant.id}`;
       if (seen.has(sku)) sku = `${sku}-${variant.id}`;
       seen.add(sku);

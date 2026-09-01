@@ -66,8 +66,8 @@ export class PrintifyClient {
   }
 
   /** Walks every page. Printify paginates with current_page / last_page. */
-  async listProducts(): Promise<PrintifyProduct[]> {
-    const all: PrintifyProduct[] = [];
+    async listProducts() {
+const all: z.input<typeof ProductPageSchema>["data"] = [];
     let page = 1;
     let lastPage = 1;
 

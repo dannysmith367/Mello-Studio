@@ -26,7 +26,7 @@ export default async function PrintifyPage() {
             <div className="mt-5 border-t border-rule pt-4">
               <p className="eyebrow">Your shops</p>
               <ul className="mt-2 font-data text-xs">
-                {shopResult.shops.map((shop) => (
+                {(shopResult.shops ?? []).map((shop) => (
                   <li key={shop.id} className="flex justify-between gap-4 py-1">
                     <span className="text-muted">{shop.title}</span>
                     <span>{shop.id}</span>

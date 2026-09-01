@@ -15,7 +15,7 @@ export function stripe(): Stripe {
     client = new Stripe(process.env.STRIPE_SECRET_KEY, {
       // Pinning the version means a Stripe upgrade can't silently change
       // payload shapes underneath us.
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: "2025-02-24.acacia",
       appInfo: { name: "Mello Studio", version: "1.0.0" },
     });
   }
