@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/guard";
@@ -212,10 +213,10 @@ export async function deleteArtwork(formData: FormData) {
     where: { id },
     include: { assets: true, products: { select: { id: true } } },
   });
-  if (!artwork) return;
+  if (!artwork) redirect("/admin/artwork");
 
   if (artwork.products.length > 0) {
-    return { error: "Remove the products using this artwork first." };
+    redirect(`/admin/artwork/${id}?blocked=1`);
   }
 
   const originals = artwork.assets.filter((a) => a.kind === "ORIGINAL").map((a) => a.storageKey);
@@ -228,4 +229,5 @@ export async function deleteArtwork(formData: FormData) {
 
   await db.artwork.delete({ where: { id } });
   revalidatePath("/admin/artwork");
+  redirect("/admin/artwork");
 }

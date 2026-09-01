@@ -7,11 +7,6 @@ import { ingestArtwork, requestUpload } from "../actions";
 
 type Stage = "idle" | "uploading" | "processing" | "done";
 
-/**
- * Uploads the original straight from the browser to Supabase, then asks the
- * server to build derivatives. The file never passes through a serverless
- * function, so a 100 MB scan is no harder than a 2 MB phone photo.
- */
 export function UploadForm({
   supabaseUrl,
   supabaseAnonKey,
@@ -48,11 +43,9 @@ export function UploadForm({
 
     if ("error" in signed) {
       setStage("idle");
-      return setError(signed.error);
+      return setError(signed.error ?? "Upload failed.");
     }
 
-    // Anon key is safe in the browser; the signed token is what authorises
-    // this one upload, and it expires in two hours.
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: false },
     });
@@ -78,18 +71,19 @@ export function UploadForm({
 
     if ("error" in result) {
       setStage("idle");
-      return setError(result.error);
+      return setError(result.error ?? "Could not process that image.");
     }
 
     setStage("done");
     router.push(`/admin/artwork/${result.id}`);
   }
 
+  const field =
+    "mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm focus:border-iris focus:outline-none";
+
   return (
     <div className="mt-6 max-w-xl">
-      <label htmlFor="file" className="eyebrow block">
-        Image file
-      </label>
+      <label htmlFor="file" className="eyebrow block">Image file</label>
       <input
         id="file"
         type="file"
@@ -99,42 +93,35 @@ export function UploadForm({
           setFile(e.target.files?.[0] ?? null);
           setError(null);
         }}
-        className="mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm file:mr-3 file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:font-data file:text-xs file:text-bone"
+        className={field}
       />
       <p className="mt-2 font-data text-[0.625rem] text-muted">
-        Upload the largest version you have. The original is stored untouched and
-        is the only file that can make a print later.
+        Upload the largest version you have. The original is stored untouched and is the only file that can make a print later.
       </p>
 
-      <label htmlFor="title" className="eyebrow mt-6 block">
-        Title
-      </label>
+      <label htmlFor="title" className="eyebrow mt-6 block">Title</label>
       <input
         id="title"
         value={title}
         disabled={busy}
         onChange={(e) => setTitle(e.target.value)}
-        className="mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm focus:border-iris focus:outline-none"
+        className={field}
       />
 
       <div className="mt-5 grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="medium" className="eyebrow block">
-            Medium
-          </label>
+          <label htmlFor="medium" className="eyebrow block">Medium</label>
           <input
             id="medium"
             value={medium}
             disabled={busy}
             placeholder="Acrylic on canvas"
             onChange={(e) => setMedium(e.target.value)}
-            className="mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm placeholder:text-muted/50 focus:border-iris focus:outline-none"
+            className={field}
           />
         </div>
         <div>
-          <label htmlFor="year" className="eyebrow block">
-            Year
-          </label>
+          <label htmlFor="year" className="eyebrow block">Year</label>
           <input
             id="year"
             type="number"
@@ -142,35 +129,27 @@ export function UploadForm({
             disabled={busy}
             placeholder="2021"
             onChange={(e) => setYear(e.target.value)}
-            className="mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm placeholder:text-muted/50 focus:border-iris focus:outline-none"
+            className={field}
           />
         </div>
       </div>
 
-      <label htmlFor="description" className="eyebrow mt-5 block">
-        Description
-      </label>
+      <label htmlFor="description" className="eyebrow mt-5 block">Description</label>
       <textarea
         id="description"
         rows={3}
         value={description}
         disabled={busy}
         onChange={(e) => setDescription(e.target.value)}
-        className="mt-2 w-full border border-rule bg-transparent px-3 py-2.5 text-sm focus:border-iris focus:outline-none"
+        className={field}
       />
 
       {error && (
-        <p role="alert" className="mt-5 font-data text-xs text-iris">
-          {error}
-        </p>
+        <p role="alert" className="mt-5 font-data text-xs text-iris">{error}</p>
       )}
 
       <button onClick={handleSubmit} disabled={busy} className="btn-solid mt-7 w-full sm:w-auto">
-        {stage === "uploading"
-          ? "Uploading…"
-          : stage === "processing"
-            ? "Processing…"
-            : "Upload artwork"}
+        {stage === "uploading" ? "Uploading…" : stage === "processing" ? "Processing…" : "Upload artwork"}
       </button>
 
       <p className="mt-3 font-data text-[0.625rem] text-muted">

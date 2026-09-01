@@ -11,10 +11,13 @@ export const metadata = { title: "Edit artwork" };
 
 export default async function EditArtworkPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ blocked?: string }>;
 }) {
   const { id } = await params;
+  const { blocked } = await searchParams;
   const artwork = await db.artwork.findUnique({
     where: { id },
     include: { assets: true, products: { include: { productType: true } } },
@@ -88,13 +91,6 @@ export default async function EditArtworkPage({
             ))}
           </ul>
 
-          <Link
-            href={`/admin/products/new?artwork=${artwork.id}`}
-            className="btn-ghost mt-4 block text-center"
-          >
-            Make a product
-          </Link>
-
           {artwork.products.length > 0 && (
             <div className="mt-4 border border-rule bg-surface p-4">
               <p className="eyebrow">Products</p>
@@ -139,6 +135,11 @@ export default async function EditArtworkPage({
               Deleting removes the stored files too. Products using this artwork
               must be removed first.
             </p>
+            {blocked && (
+              <p role="alert" className="mt-3 font-data text-xs text-iris">
+                Remove the products using this artwork first.
+              </p>
+            )}
             <button className="btn-ghost mt-3">Delete artwork</button>
           </form>
         </div>
