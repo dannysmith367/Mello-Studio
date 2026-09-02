@@ -108,7 +108,10 @@ export default async function OrderConfirmationPage({
         </p>
       )}
 
-      <Link href="/shop" className="btn-ghost mt-8 inline-block">Keep shopping</Link>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link href="/shop" className="btn-ghost">Keep shopping</Link>
+        <Link href="/support" className="btn-ghost">Report a problem</Link>
+      </div>
     </section>
   );
 }

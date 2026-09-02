@@ -192,6 +192,18 @@ export async function importPrintifyProduct(raw: unknown) {
 
     await db.productVariant.createMany({ data: variantData, skipDuplicates: true });
 
+    // Best-effort: our catalog import already succeeded, so a failure here
+    // (network hiccup, revoked scope) must not roll it back — it would just
+    // leave the product showing "publishing" in Printify's own dashboard.
+    try {
+      await provider.client().publishingSucceeded(remote.id, {
+        id: product.id,
+        handle: `/products/${product.slug}`,
+      });
+    } catch (error) {
+      console.error(`[printify] publishing_succeeded failed for ${remote.id}:`, error);
+    }
+
     // Printify's product shots — the actual garment/print in context, not the
     // flat artwork file. Stored on the artwork like any other asset; the
     // default mockup goes first so it's the one storefront pages pick up.

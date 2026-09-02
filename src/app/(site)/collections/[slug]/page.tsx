@@ -12,9 +12,27 @@ export async function generateMetadata({
   const { slug } = await params;
   const collection = await getCollectionBySlug(slug);
   if (!collection) return { title: "Not found" };
+
+  const title = collection.seoTitle ?? collection.name;
+  const description = collection.seoDescription ?? collection.description ?? undefined;
+  const firstArtworkAsset = thumbnailAsset(collection.artworks[0]?.artwork.assets ?? []);
+  const image = collection.coverAsset?.url ?? firstArtworkAsset?.url ?? "/brand/og-default.png";
+
   return {
-    title: collection.seoTitle ?? collection.name,
-    description: collection.seoDescription ?? collection.description ?? undefined,
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      images: [image],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
 }
 
@@ -52,7 +70,7 @@ export default async function CollectionPage({
           return (
             <ArtworkCard
               key={artwork.id}
-              href={`/shop?artwork=${artwork.slug}`}
+              href={`/artwork/${artwork.slug}`}
               imageUrl={asset?.url ?? null}
               alt={asset?.altText ?? artwork.title}
               title={artwork.title}

@@ -7,11 +7,15 @@ const sections = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/artwork", label: "Artwork" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/product-types", label: "Product types" },
   { href: "/admin/printify", label: "Printify" },
   { href: "/admin/collections", label: "Collections" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/inquiries", label: "Enquiries" },
+  { href: "/admin/issues", label: "Issues" },
   { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/newsletter", label: "Newsletter" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export default async function AdminLayout({

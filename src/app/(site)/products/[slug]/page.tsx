@@ -18,12 +18,24 @@ export async function generateMetadata({
   const asset = displayAsset(product.artwork.assets, {
     preferMockup: product.productType.category === "APPAREL",
   });
+  const title = product.seoTitle ?? product.name;
+  const description = product.seoDescription ?? product.description ?? undefined;
+  const image = asset?.url ?? "/brand/og-default.png";
+
   return {
-    title: product.seoTitle ?? product.name,
-    description: product.seoDescription ?? product.description ?? undefined,
+    title,
+    description,
     openGraph: {
-      title: product.seoTitle ?? product.name,
-      images: asset?.url ? [asset.url] : [],
+      type: "website",
+      title,
+      description,
+      images: [image],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
     },
   };
 }
@@ -91,7 +103,7 @@ export default async function ProductPage({
               </div>
             </dl>
             <Link
-              href={`/shop?artwork=${product.artwork.slug}`}
+              href={`/artwork/${product.artwork.slug}`}
               className="mt-3 inline-block font-data text-[0.6875rem] uppercase tracking-[0.14em] text-muted hover:text-bone"
             >
               Other formats of this piece →

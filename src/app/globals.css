@@ -93,6 +93,27 @@
 }
 .btn-solid:hover { opacity: 0.85; }
 
+/* Long-form policy text — headings and lists get just enough structure to
+   stay scannable without borrowing a full prose plugin. */
+.legal-copy h2 {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-bone);
+}
+.legal-copy p + h2,
+.legal-copy ul + h2 {
+  margin-top: 0;
+}
+.legal-copy ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin-top: 0.75rem;
+}
+.legal-copy li + li { margin-top: 0.375rem; }
+.legal-copy a { color: var(--color-bone); text-decoration: underline; text-underline-offset: 2px; }
+
 /* Mosaic tiles sit dim until hovered, so the wordmark stays legible over them
    and the grid reads as one field rather than eight competing images. */
 .mosaic-tile img {

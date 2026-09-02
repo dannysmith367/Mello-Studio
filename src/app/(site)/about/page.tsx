@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getPublishedArtworks } from "@/lib/queries";
+import { getAboutImageUrl } from "@/lib/settings";
 import { thumbnailAsset } from "@/lib/assets";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -20,38 +21,69 @@ const MEDIUMS = [
 ];
 
 export default async function AboutPage() {
-  const artworks = await getPublishedArtworks(3);
+  const [artworks, portraitUrl] = await Promise.all([
+    getPublishedArtworks(3),
+    getAboutImageUrl(),
+  ]);
+
+  const bio = (
+    <div>
+      <BrandMark size={56} className="opacity-90" />
+
+      <p className="eyebrow mt-8">About the artist</p>
+      <h1 className="mt-4 font-display text-4xl font-medium leading-[1.1] tracking-tight sm:text-6xl">
+        Mello
+      </h1>
+
+      <div className="mt-10 space-y-6 text-[0.9375rem] leading-[1.75] text-muted">
+        <p className="text-bone">
+          Mello is a self-taught multidisciplinary artist originally from the
+          East Coast, whose creative journey began in childhood. Driven by
+          curiosity and a passion for storytelling through art, he has spent
+          years developing a distinctive style that blends cultural influences,
+          visionary concepts, and raw imagination.
+        </p>
+        <p>
+          His work explores the connection between life, nature, and human
+          experience, drawing inspiration from the world around him. Each piece
+          reflects a balance of creativity, craftsmanship, and personal
+          expression.
+        </p>
+        <p>
+          Rather than limiting himself to a single style, he embraces
+          experimentation, allowing each project to evolve naturally into
+          something unique.
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <article>
-      <section className="mx-auto max-w-3xl px-5 pt-16 sm:px-8 sm:pt-24">
-        <BrandMark size={56} className="opacity-90" />
-
-        <p className="eyebrow mt-8">About the artist</p>
-        <h1 className="mt-4 font-display text-4xl font-medium leading-[1.1] tracking-tight sm:text-6xl">
-          Mello
-        </h1>
-
-        <div className="mt-10 space-y-6 text-[0.9375rem] leading-[1.75] text-muted">
-          <p className="text-bone">
-            Mello is a self-taught multidisciplinary artist originally from the
-            East Coast, whose creative journey began in childhood. Driven by
-            curiosity and a passion for storytelling through art, he has spent
-            years developing a distinctive style that blends cultural influences,
-            visionary concepts, and raw imagination.
-          </p>
-          <p>
-            His work explores the connection between life, nature, and human
-            experience, drawing inspiration from the world around him. Each piece
-            reflects a balance of creativity, craftsmanship, and personal
-            expression.
-          </p>
-          <p>
-            Rather than limiting himself to a single style, he embraces
-            experimentation, allowing each project to evolve naturally into
-            something unique.
-          </p>
-        </div>
+      <section
+        className={
+          portraitUrl
+            ? "mx-auto max-w-5xl px-5 pt-16 sm:px-8 sm:pt-24"
+            : "mx-auto max-w-3xl px-5 pt-16 sm:px-8 sm:pt-24"
+        }
+      >
+        {portraitUrl ? (
+          <div className="grid gap-10 md:grid-cols-2 md:items-start md:gap-14">
+            <div className="relative aspect-[4/5] overflow-hidden bg-surface">
+              <Image
+                src={portraitUrl}
+                alt="Portrait of Mello"
+                fill
+                sizes="(max-width: 768px) 100vw, 45vw"
+                className="object-cover"
+                priority
+              />
+            </div>
+            {bio}
+          </div>
+        ) : (
+          bio
+        )}
       </section>
 
       {/* Mediums as a catalogue list — the range is the point, so it gets
@@ -101,7 +133,7 @@ export default async function AboutPage() {
               return (
                 <Link
                   key={artwork.id}
-                  href={`/shop?artwork=${artwork.slug}`}
+                  href={`/artwork/${artwork.slug}`}
                   className="group relative aspect-square overflow-hidden bg-surface"
                 >
                   {asset?.url && (

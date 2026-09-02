@@ -5,6 +5,67 @@ import { hashPassword } from "../src/lib/auth/password";
 
 const db = new PrismaClient();
 
+const ENTER_KEYS = ["\n", "\r", ""]; //  = Ctrl-D
+const INTERRUPT_KEY = ""; // Ctrl-C
+const BACKSPACE_KEYS = ["", "\b"]; // DEL / backspace
+
+/**
+ * Reads a line from stdin without echoing it back to the terminal.
+ *
+ * Node's readline has no built-in mask, so this drives stdin in raw mode
+ * and prints one asterisk per character instead. Falls back to a plain
+ * (visible) prompt when stdin isn't a TTY — raw mode has nothing to attach
+ * to when input is piped in, e.g. from a script.
+ */
+async function readPassword(promptText: string): Promise<string> {
+  if (!stdin.isTTY) {
+    const rl = createInterface({ input: stdin, output: stdout });
+    const value = await rl.question(promptText);
+    rl.close();
+    return value;
+  }
+
+  return new Promise((resolve, reject) => {
+    stdout.write(promptText);
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    let input = "";
+    const onData = (char: string) => {
+      if (ENTER_KEYS.includes(char)) {
+        cleanup();
+        stdout.write("\n");
+        resolve(input);
+        return;
+      }
+      if (char === INTERRUPT_KEY) {
+        cleanup();
+        stdout.write("\n");
+        reject(new Error("Cancelled."));
+        return;
+      }
+      if (BACKSPACE_KEYS.includes(char)) {
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+          stdout.write("\b \b");
+        }
+        return;
+      }
+      input += char;
+      stdout.write("*");
+    };
+
+    function cleanup() {
+      stdin.removeListener("data", onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+    }
+
+    stdin.on("data", onData);
+  });
+}
+
 /**
  * Creates or updates an admin user.
  *
@@ -18,8 +79,9 @@ async function main() {
 
   const email = (await rl.question("Email: ")).trim().toLowerCase();
   const name = (await rl.question("Name (optional): ")).trim();
-  const password = (await rl.question("Password: ")).trim();
   rl.close();
+
+  const password = (await readPassword("Password: ")).trim();
 
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     console.error("That is not a valid email address.");

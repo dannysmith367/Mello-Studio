@@ -28,7 +28,7 @@ export function ArtworkMosaic({
         {tiles.map((tile) => (
           <Link
             key={tile.slug}
-            href={`/shop?artwork=${tile.slug}`}
+            href={`/artwork/${tile.slug}`}
             className="mosaic-tile relative overflow-hidden bg-surface"
             aria-label={tile.title}
           >

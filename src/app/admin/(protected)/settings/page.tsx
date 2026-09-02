@@ -1,0 +1,50 @@
+import { getAboutImageUrl, getSocialLinks } from "@/lib/settings";
+import { SettingsForm } from "./SettingsForm";
+import { AboutImageUpload } from "./AboutImageUpload";
+
+export const metadata = { title: "Settings" };
+
+export default async function SettingsPage() {
+  const [social, aboutImageUrl] = await Promise.all([getSocialLinks(), getAboutImageUrl()]);
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  const bucket = process.env.SUPABASE_BUCKET_ORIGINALS ?? "artwork-originals";
+
+  return (
+    <>
+      <h1 className="font-display text-2xl font-medium tracking-tight">Settings</h1>
+
+      <section className="mt-6">
+        <h2 className="font-display text-lg font-medium tracking-tight">Social links</h2>
+        <p className="mt-1 max-w-xl text-sm text-muted">
+          Shown as icons in the site footer.
+        </p>
+        <div className="mt-4">
+          <SettingsForm social={social} />
+        </div>
+      </section>
+
+      <section className="mt-12 border-t border-rule pt-8">
+        <h2 className="font-display text-lg font-medium tracking-tight">About page portrait</h2>
+        <p className="mt-1 max-w-xl text-sm text-muted">
+          Shown beside the bio on /about. Hidden entirely until an image is set.
+        </p>
+        <div className="mt-4">
+          {supabaseUrl && anonKey ? (
+            <AboutImageUpload
+              currentUrl={aboutImageUrl}
+              supabaseUrl={supabaseUrl}
+              supabaseAnonKey={anonKey}
+              bucket={bucket}
+            />
+          ) : (
+            <p className="border border-rule bg-surface p-4 font-data text-xs text-muted">
+              Storage is not configured — add your Supabase keys to .env.
+            </p>
+          )}
+        </div>
+      </section>
+    </>
+  );
+}

@@ -101,6 +101,43 @@ const all: z.input<typeof ProductPageSchema>["data"] = [];
   async getOrder(orderId: string) {
     return this.request(`/shops/${this.shopId}/orders/${orderId}.json`, OrderSchema);
   }
+
+  /**
+   * Confirms a product's publish to Printify.
+   *
+   * Every product pushed to a Printify shop is created in a "publishing"
+   * state and waits for the connected sales channel to call this endpoint —
+   * without it, the product stays stuck mid-publish in Printify's UI even
+   * though it already exists on our storefront. Printify returns 200 with
+   * no body on success, so this bypasses the JSON-parsing request() helper.
+   */
+  async publishingSucceeded(
+    productId: string,
+    external: { id: string; handle: string }
+  ): Promise<void> {
+    const response = await fetch(
+      `${BASE_URL}/shops/${this.shopId}/products/${productId}/publishing_succeeded.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json;charset=utf-8",
+          "User-Agent": "MelloStudio/1.0",
+        },
+        body: JSON.stringify({ external }),
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new PrintifyError(
+        response.status,
+        `/shops/${this.shopId}/products/${productId}/publishing_succeeded.json`,
+        body.slice(0, 400)
+      );
+    }
+  }
 }
 
 export class PrintifyError extends Error {

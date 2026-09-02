@@ -64,6 +64,54 @@ export async function getProductsByCategory(
   });
 }
 
+/**
+ * The public catalog is browsed by artwork, not by product — a piece sold
+ * as five formats is one tile, not five. `fromPriceCents` is the cheapest
+ * published product matching the same filter, so an "apparel" listing
+ * prices by the cheapest apparel product even if the piece also has a
+ * cheaper print.
+ */
+export async function getArtworksWithProducts({
+  category,
+  productTypeSlug,
+}: {
+  category?: "APPAREL" | "PRINT" | "ACCESSORY";
+  productTypeSlug?: string;
+} = {}) {
+  const productFilter = {
+    published: true,
+    ...(category ? { productType: { category } } : {}),
+    ...(productTypeSlug ? { productType: { slug: productTypeSlug } } : {}),
+  };
+
+  const artworks = await db.artwork.findMany({
+    where: { status: "PUBLISHED", products: { some: productFilter } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      featured: true,
+      assets: true,
+      products: { where: productFilter, select: { retailPriceCents: true } },
+    },
+    orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+  });
+
+  return artworks.map(({ products, ...artwork }) => ({
+    ...artwork,
+    fromPriceCents: Math.min(...products.map((p) => p.retailPriceCents)),
+  }));
+}
+
+/** Types that can actually show up in the /shop format row — published work in them, and a tile image set. */
+export async function getShopFormatTypes() {
+  return db.productType.findMany({
+    where: { imageUrl: { not: null }, products: { some: { published: true } } },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, slug: true, imageUrl: true },
+  });
+}
+
 export async function getProductBySlug(slug: string) {
   return db.product.findUnique({
     where: { slug },

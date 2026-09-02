@@ -1,5 +1,5 @@
-import { getProductsByCategory } from "@/lib/queries";
-import { ProductGrid } from "@/components/ProductGrid";
+import { getArtworksWithProducts } from "@/lib/queries";
+import { ArtworkGrid } from "@/components/ArtworkGrid";
 
 export const metadata = {
   title: "Prints",
@@ -13,7 +13,7 @@ export const metadata = {
  * is different from what an apparel buyer needs, so the page says it up front.
  */
 export default async function PrintsPage() {
-  const products = await getProductsByCategory("PRINT");
+  const artworks = await getArtworksWithProducts({ category: "PRINT" });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
@@ -48,13 +48,8 @@ export default async function PrintsPage() {
       </header>
 
       <div className="mt-10">
-        <ProductGrid products={products} />
+        <ArtworkGrid artworks={artworks} />
       </div>
-
-      <p className="mt-12 border-t border-rule pt-6 font-data text-[0.6875rem] leading-relaxed text-muted">
-        Print specs above are placeholders until the print provider is chosen.
-        Paper weight, finish and true sizes get set in Phase&nbsp;11.
-      </p>
     </section>
   );
 }

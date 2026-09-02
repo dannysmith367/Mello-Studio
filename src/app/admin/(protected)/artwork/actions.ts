@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -8,9 +7,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/guard";
 import { storage } from "@/lib/storage";
 import { buildDerivatives, inspect } from "@/lib/images";
-
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/tiff"];
-const MAX_BYTES = 200 * 1024 * 1024;
+import { requestImageUpload } from "@/lib/uploads";
 
 function slugify(value: string): string {
   return value
@@ -44,26 +41,7 @@ export async function requestUpload(input: {
   bytes: number;
 }) {
   await requireAdmin();
-
-  if (!ACCEPTED.includes(input.contentType)) {
-    return { error: "Upload a JPEG, PNG, WebP or TIFF." };
-  }
-  if (input.bytes > MAX_BYTES) {
-    return { error: "That file is over 200 MB." };
-  }
-  if (!storage.isConfigured) {
-    return { error: "Storage is not configured. Add your Supabase keys to .env." };
-  }
-
-  const extension = input.filename.split(".").pop()?.toLowerCase() ?? "bin";
-  const key = `${new Date().getFullYear()}/${randomUUID()}.${extension}`;
-
-  try {
-    const signed = await storage.createSignedUpload("originals", key);
-    return { key: signed.key, token: signed.token };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Upload failed." };
-  }
+  return requestImageUpload(input);
 }
 
 const IngestInput = z.object({
