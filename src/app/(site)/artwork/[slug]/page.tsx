@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getArtworkBySlug } from "@/lib/queries";
-import { displayAsset } from "@/lib/assets";
+import { displayAsset, productMockups } from "@/lib/assets";
 import { AddToBag } from "@/components/AddToBag";
 
 export async function generateMetadata({
@@ -92,24 +92,47 @@ export default async function ArtworkPage({
                 <div key={group.typeName}>
                   <p className="eyebrow">{group.typeName}</p>
                   <div className="mt-5 space-y-8">
-                    {group.products.map((product) => (
-                      <div key={product.id}>
-                        {group.products.length > 1 && (
-                          <p className="text-sm font-medium">{product.name}</p>
-                        )}
-                        <AddToBag
-                          productId={product.id}
-                          basePriceCents={product.retailPriceCents}
-                          variants={product.variants.map((v) => ({
-                            id: v.id,
-                            size: v.size,
-                            color: v.color,
-                            colorHex: v.colorHex,
-                            priceOverrideCents: v.priceOverrideCents,
-                          }))}
-                        />
-                      </div>
-                    ))}
+                    {group.products.map((product) => {
+                      // Prints and posters are the artwork itself — the hero
+                      // image already shows them, so no mockups exist and
+                      // none is shown here. Apparel gets its default shot.
+                      const defaultMockup = productMockups(
+                        artwork.assets,
+                        product.variants.map((v) => v.providerVariantId)
+                      )[0];
+
+                      return (
+                        <div key={product.id} className="flex gap-4">
+                          {defaultMockup?.url && (
+                            <div className="relative h-24 w-24 shrink-0 overflow-hidden bg-surface">
+                              <Image
+                                src={defaultMockup.url}
+                                alt={defaultMockup.altText ?? product.name}
+                                fill
+                                sizes="96px"
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            {group.products.length > 1 && (
+                              <p className="text-sm font-medium">{product.name}</p>
+                            )}
+                            <AddToBag
+                              productId={product.id}
+                              basePriceCents={product.retailPriceCents}
+                              variants={product.variants.map((v) => ({
+                                id: v.id,
+                                size: v.size,
+                                color: v.color,
+                                colorHex: v.colorHex,
+                                priceOverrideCents: v.priceOverrideCents,
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))

@@ -219,12 +219,17 @@ export async function importPrintifyProduct(raw: unknown) {
 
     if (orderedImages.length > 0) {
       await db.artworkAsset.createMany({
-        data: orderedImages.map((image) => ({
+        data: orderedImages.map((image, index) => ({
           artworkId,
           kind: "MOCKUP" as const,
           storageKey: image.src,
           url: image.src,
           altText: remote.title,
+          sortOrder: index,
+          // Printify scopes each shot to the variants it depicts (a colour's
+          // front/back/other, shared across that colour's sizes) — this is
+          // what lets the storefront swap the mockup when a colour is picked.
+          providerVariantIds: (image.variant_ids ?? []).map(String),
         })),
       });
     }

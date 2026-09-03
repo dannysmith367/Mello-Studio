@@ -69,10 +69,12 @@ export async function getProductsByCategory(
 
 /**
  * The public catalog is browsed by artwork, not by product — a piece sold
- * as five formats is one tile, not five. `fromPriceCents` is the cheapest
- * published product matching the same filter, so an "apparel" listing
- * prices by the cheapest apparel product even if the piece also has a
- * cheaper print.
+ * as five formats is one tile, not five. Tiles always show the artwork
+ * itself (never a garment mockup) since the piece, not any one format, is
+ * what's being browsed here; format-specific mockups belong on the detail
+ * pages. `fromPriceCents` is the cheapest published product matching the
+ * same filter, so an "apparel" listing prices by the cheapest apparel
+ * product even if the piece also has a cheaper print.
  */
 export async function getArtworksWithProducts({
   category,

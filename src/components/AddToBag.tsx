@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addToCart } from "@/lib/cart/actions";
 import { formatCents } from "@/lib/money";
@@ -11,6 +11,7 @@ type Variant = {
   color: string | null;
   colorHex: string | null;
   priceOverrideCents: number | null;
+  providerVariantId?: string | null;
 };
 
 /**
@@ -24,10 +25,13 @@ export function AddToBag({
   productId,
   variants,
   basePriceCents,
+  onVariantChange,
 }: {
   productId: string;
   variants: Variant[];
   basePriceCents: number;
+  /** Fires whenever the resolved variant changes — e.g. so a mockup gallery elsewhere on the page can swap to match. */
+  onVariantChange?: (variant: Variant | null) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,6 +52,11 @@ export function AddToBag({
     variants.find(
       (v) => (color ? v.color === color : true) && (size ? v.size === size : true)
     ) ?? (colors.length === 0 && sizes.length === 0 ? variants[0] : undefined);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on identity, not the callback prop
+  useEffect(() => {
+    onVariantChange?.(selected ?? null);
+  }, [selected?.id]);
 
   const price = selected?.priceOverrideCents ?? basePriceCents;
 

@@ -179,6 +179,15 @@ model ArtworkAsset {
   cropLabel String?
   altText   String?
 
+  // MOCKUP only, from Printify's own ordering — default shot first, so a
+  // gallery can just sort by this instead of guessing at insertion order.
+  sortOrder Int @default(0)
+  // MOCKUP only: the provider's variant ids this specific shot depicts (a
+  // colour's front/back/other, shared across that colour's sizes). Empty
+  // means the shot isn't scoped to a variant — e.g. imported before this
+  // existed, or a provider that doesn't supply the mapping.
+  providerVariantIds String[] @default([])
+
   productsUsingAsPrint Product[]        @relation("ProductPrintAsset")
   variantsUsingAsPrint ProductVariant[] @relation("VariantPrintAsset")
   collectionsUsingAsCover Collection[]  @relation("CollectionCover")

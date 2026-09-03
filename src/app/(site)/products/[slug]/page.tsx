@@ -1,10 +1,8 @@
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductBySlug } from "@/lib/queries";
-import { displayAsset } from "@/lib/assets";
-import { AddToBag } from "@/components/AddToBag";
+import { displayAsset, productMockups } from "@/lib/assets";
+import { ProductDetail } from "./ProductDetail";
 
 export async function generateMetadata({
   params,
@@ -15,9 +13,11 @@ export async function generateMetadata({
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Not found" };
 
-  const asset = displayAsset(product.artwork.assets, {
-    preferMockup: product.productType.category === "APPAREL",
-  });
+  const mockups = productMockups(
+    product.artwork.assets,
+    product.variants.map((v) => v.providerVariantId)
+  );
+  const asset = mockups[0] ?? displayAsset(product.artwork.assets);
   const title = product.seoTitle ?? product.name;
   const description = product.seoDescription ?? product.description ?? undefined;
   const image = asset?.url ?? "/brand/og-default.png";
@@ -49,68 +49,44 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product || !product.published) notFound();
 
-  const asset = displayAsset(product.artwork.assets, {
-    preferMockup: product.productType.category === "APPAREL",
-  });
+  // Prints and posters are the artwork itself, so they never get mockups —
+  // this only ever finds shots for a product that actually has them (apparel).
+  const mockups = productMockups(
+    product.artwork.assets,
+    product.variants.map((v) => v.providerVariantId)
+  );
+  const fallback = displayAsset(product.artwork.assets);
+  const gallery =
+    mockups.length > 0
+      ? mockups.map((m) => ({ url: m.url!, altText: m.altText, providerVariantIds: m.providerVariantIds }))
+      : fallback?.url
+        ? [{ url: fallback.url, altText: fallback.altText, providerVariantIds: [] }]
+        : [];
+
   return (
-    <article className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">
-      <div className="grid gap-10 md:grid-cols-2 md:gap-16">
-        <div className="relative aspect-[4/5] overflow-hidden bg-surface">
-          {asset?.url && (
-            <Image
-              src={asset.url}
-              alt={asset.altText ?? product.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 45vw"
-              className="object-cover"
-              priority
-              unoptimized={asset.kind === "MOCKUP"}
-            />
-          )}
-        </div>
-
-        <div className="flex flex-col">
-          <p className="eyebrow">{product.productType.name}</p>
-          <h1 className="mt-3 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-            {product.name}
-          </h1>
-          {product.description && (
-            <p className="mt-6 max-w-md text-sm leading-relaxed text-muted">
-              {product.description}
-            </p>
-          )}
-
-          <AddToBag
-            productId={product.id}
-            basePriceCents={product.retailPriceCents}
-            variants={product.variants.map((v) => ({
-              id: v.id,
-              size: v.size,
-              color: v.color,
-              colorHex: v.colorHex,
-              priceOverrideCents: v.priceOverrideCents,
-            }))}
-          />
-
-          <div className="mt-10 border-t border-rule pt-6">
-            <p className="eyebrow">The artwork</p>
-            <dl className="wall-label mt-3">
-              <dd className="font-medium">{product.artwork.title}</dd>
-              <div className="mt-1 text-muted">
-                {product.artwork.medium}
-                {product.artwork.medium && product.artwork.yearCreated ? ", " : ""}
-                {product.artwork.yearCreated}
-              </div>
-            </dl>
-            <Link
-              href={`/artwork/${product.artwork.slug}`}
-              className="mt-3 inline-block font-data text-[0.6875rem] uppercase tracking-[0.14em] text-muted hover:text-bone"
-            >
-              Other formats of this piece →
-            </Link>
-          </div>
-        </div>
-      </div>
-    </article>
+    <ProductDetail
+      product={{
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        retailPriceCents: product.retailPriceCents,
+        productTypeName: product.productType.name,
+        variants: product.variants.map((v) => ({
+          id: v.id,
+          size: v.size,
+          color: v.color,
+          colorHex: v.colorHex,
+          priceOverrideCents: v.priceOverrideCents,
+          providerVariantId: v.providerVariantId,
+        })),
+        gallery,
+        artwork: {
+          title: product.artwork.title,
+          slug: product.artwork.slug,
+          medium: product.artwork.medium,
+          yearCreated: product.artwork.yearCreated,
+        },
+      }}
+    />
   );
 }
