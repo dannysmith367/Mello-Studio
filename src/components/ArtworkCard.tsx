@@ -8,6 +8,7 @@ export function ArtworkCard({
   title,
   medium,
   year,
+  formats,
   price,
   priority = false,
 }: {
@@ -17,6 +18,8 @@ export function ArtworkCard({
   title: string;
   medium?: string | null;
   year?: number | null;
+  /** Distinct product types this piece is available in — "Tee · Hoodie · Poster". */
+  formats?: string[];
   price?: string | null;
   priority?: boolean;
 }) {
@@ -47,6 +50,9 @@ export function ArtworkCard({
             {medium && year ? ", " : ""}
             {year}
           </div>
+        )}
+        {formats && formats.length > 0 && (
+          <div className="mt-1 text-muted">{formats.join(" · ")}</div>
         )}
         {price && <div className="mt-1.5">{price}</div>}
       </dl>

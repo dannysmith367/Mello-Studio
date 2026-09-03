@@ -1,5 +1,5 @@
 import { ProductCard } from "./ProductCard";
-import { thumbnailAsset } from "@/lib/assets";
+import { thumbnailAsset, productMockups } from "@/lib/assets";
 
 type DisplayableAsset = {
   kind: string;
@@ -7,6 +7,8 @@ type DisplayableAsset = {
   altText: string | null;
   width: number | null;
   height: number | null;
+  sortOrder: number;
+  providerVariantIds: string[];
 };
 
 export type ProductCardData = {
@@ -16,6 +18,7 @@ export type ProductCardData = {
   retailPriceCents: number;
   productType: { name: string; category: string };
   artwork: { title: string; yearCreated: number | null; assets: DisplayableAsset[] };
+  variants: { providerVariantId: string | null }[];
 };
 
 export function ProductGrid({ products }: { products: ProductCardData[] }) {
@@ -33,9 +36,18 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {products.map((product, index) => {
-        const asset = thumbnailAsset(product.artwork.assets, {
-          preferMockup: product.productType.category === "APPAREL",
-        });
+        // The product's own default mockup (Printify's ordering) when it
+        // has one; otherwise the flat artwork file, same as everywhere else.
+        const mockups = productMockups(
+          product.artwork.assets,
+          product.variants.map((v) => v.providerVariantId)
+        );
+        const asset =
+          mockups[0] ??
+          thumbnailAsset(product.artwork.assets, {
+            preferMockup: product.productType.category === "APPAREL",
+          });
+
         return (
           <ProductCard
             key={product.id}
@@ -44,7 +56,7 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
             imageUnoptimized={asset?.kind === "MOCKUP"}
             alt={asset?.altText ?? product.name}
             name={product.name}
-            typeName={product.productType.name}
+            artworkTitle={product.artwork.title}
             priceCents={product.retailPriceCents}
             priority={index < 4}
           />

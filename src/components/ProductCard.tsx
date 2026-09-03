@@ -12,7 +12,7 @@ export function ProductCard({
   imageUnoptimized = false,
   alt,
   name,
-  typeName,
+  artworkTitle,
   priceCents,
   priority = false,
 }: {
@@ -21,7 +21,7 @@ export function ProductCard({
   imageUnoptimized?: boolean;
   alt: string;
   name: string;
-  typeName: string;
+  artworkTitle: string;
   priceCents: number;
   priority?: boolean;
 }) {
@@ -48,7 +48,7 @@ export function ProductCard({
       </Link>
 
       <div className="p-3.5">
-        <p className="eyebrow">{typeName}</p>
+        <p className="eyebrow">{artworkTitle}</p>
         <Link href={href} className="mt-2 block text-sm font-medium leading-snug hover:text-muted">
           {name}
         </Link>

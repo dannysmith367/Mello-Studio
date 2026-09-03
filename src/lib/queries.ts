@@ -49,14 +49,21 @@ export async function getArtworkBySlug(slug: string) {
   });
 }
 
-/** Category is a filter over one catalog, not a separate tree. */
+/**
+ * Category is a filter over one catalog, not a separate tree. A specific
+ * product type ("Hoodies") and an artwork narrow it further — /apparel and
+ * /prints are category pages with those two filters layered on top.
+ */
 export async function getProductsByCategory(
-  category?: "APPAREL" | "PRINT" | "ACCESSORY"
+  category?: "APPAREL" | "PRINT" | "ACCESSORY",
+  opts: { productTypeSlug?: string; artworkSlug?: string } = {}
 ) {
   return db.product.findMany({
     where: {
       published: true,
       ...(category ? { productType: { category } } : {}),
+      ...(opts.productTypeSlug ? { productType: { slug: opts.productTypeSlug } } : {}),
+      ...(opts.artworkSlug ? { artwork: { slug: opts.artworkSlug } } : {}),
     },
     include: {
       productType: true,
@@ -74,7 +81,10 @@ export async function getProductsByCategory(
  * what's being browsed here; format-specific mockups belong on the detail
  * pages. `fromPriceCents` is the cheapest published product matching the
  * same filter, so an "apparel" listing prices by the cheapest apparel
- * product even if the piece also has a cheaper print.
+ * product even if the piece also has a cheaper print. `formats` is every
+ * distinct product type that piece is available in ("Tee", "Hoodie",
+ * "Poster"), in the same order they're set up in the admin, so a tile says
+ * up front what there actually is to buy.
  */
 export async function getArtworksWithProducts({
   category,
@@ -99,15 +109,28 @@ export async function getArtworksWithProducts({
       title: true,
       featured: true,
       assets: true,
-      products: { where: productFilter, select: { retailPriceCents: true } },
+      products: {
+        where: productFilter,
+        select: {
+          retailPriceCents: true,
+          productType: { select: { name: true, sortOrder: true } },
+        },
+      },
     },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
 
-  return artworks.map(({ products, ...artwork }) => ({
-    ...artwork,
-    fromPriceCents: Math.min(...products.map((p) => p.retailPriceCents)),
-  }));
+  return artworks.map(({ products, ...artwork }) => {
+    const formats = [...new Map(products.map((p) => [p.productType.name, p.productType.sortOrder]))]
+      .sort(([, a], [, b]) => a - b)
+      .map(([name]) => name);
+
+    return {
+      ...artwork,
+      fromPriceCents: Math.min(...products.map((p) => p.retailPriceCents)),
+      formats,
+    };
+  });
 }
 
 /**
@@ -127,12 +150,43 @@ export async function getStudioProducts() {
   });
 }
 
-/** Types that can actually show up in the /shop format row — published work in them, and a tile image set. */
-export async function getShopFormatTypes() {
+/**
+ * Types that can actually show up in a format row — published work in
+ * them, and a tile image set. Shared by /shop (no category — every type),
+ * /apparel and /prints (scoped to just that category's types).
+ */
+export async function getFormatTypes(category?: "APPAREL" | "PRINT" | "ACCESSORY") {
   return db.productType.findMany({
-    where: { imageUrl: { not: null }, products: { some: { published: true } } },
+    where: {
+      imageUrl: { not: null },
+      products: { some: { published: true } },
+      ...(category ? { category } : {}),
+    },
     orderBy: { sortOrder: "asc" },
     select: { id: true, name: true, slug: true, imageUrl: true },
+  });
+}
+
+/** The secondary "piece" filter on /apparel and /prints — every artwork with a published product in view. */
+export async function getArtworksForCategoryFilter(
+  category: "APPAREL" | "PRINT" | "ACCESSORY",
+  productTypeSlug?: string
+) {
+  return db.artwork.findMany({
+    where: {
+      status: "PUBLISHED",
+      products: {
+        some: {
+          published: true,
+          productType: {
+            category,
+            ...(productTypeSlug ? { slug: productTypeSlug } : {}),
+          },
+        },
+      },
+    },
+    select: { slug: true, title: true },
+    orderBy: { title: "asc" },
   });
 }
 

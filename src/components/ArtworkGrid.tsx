@@ -16,6 +16,7 @@ export type ArtworkTileData = {
   title: string;
   assets: DisplayableAsset[];
   fromPriceCents: number;
+  formats: string[];
 };
 
 export function ArtworkGrid({ artworks }: { artworks: ArtworkTileData[] }) {
@@ -41,6 +42,7 @@ export function ArtworkGrid({ artworks }: { artworks: ArtworkTileData[] }) {
             imageUrl={asset?.url ?? null}
             alt={asset?.altText ?? artwork.title}
             title={artwork.title}
+            formats={artwork.formats}
             price={`From ${formatCents(artwork.fromPriceCents)}`}
             priority={index < 4}
           />

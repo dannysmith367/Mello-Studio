@@ -1,4 +1,4 @@
-import { getArtworksWithProducts, getShopFormatTypes } from "@/lib/queries";
+import { getArtworksWithProducts, getFormatTypes } from "@/lib/queries";
 import { ArtworkGrid } from "./ArtworkGrid";
 import { FormatRow } from "./FormatRow";
 
@@ -25,7 +25,7 @@ export async function CatalogPage({
 }) {
   const [artworks, formatTypes] = await Promise.all([
     getArtworksWithProducts({ category, productTypeSlug }),
-    showFormatRow ? getShopFormatTypes() : Promise.resolve([]),
+    showFormatRow ? getFormatTypes() : Promise.resolve([]),
   ]);
 
   return (

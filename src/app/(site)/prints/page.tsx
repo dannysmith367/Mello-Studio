@@ -1,5 +1,4 @@
-import { getArtworksWithProducts } from "@/lib/queries";
-import { ArtworkGrid } from "@/components/ArtworkGrid";
+import { ProductCatalog } from "@/components/ProductCatalog";
 
 export const metadata = {
   title: "Prints",
@@ -12,8 +11,12 @@ export const metadata = {
  * What a print buyer needs to know — paper, size, edition, how it ships —
  * is different from what an apparel buyer needs, so the page says it up front.
  */
-export default async function PrintsPage() {
-  const artworks = await getArtworksWithProducts({ category: "PRINT" });
+export default async function PrintsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; artwork?: string }>;
+}) {
+  const { type, artwork } = await searchParams;
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
@@ -47,9 +50,12 @@ export default async function PrintsPage() {
         </dl>
       </header>
 
-      <div className="mt-10">
-        <ArtworkGrid artworks={artworks} />
-      </div>
+      <ProductCatalog
+        category="PRINT"
+        basePath="/prints"
+        productTypeSlug={type}
+        artworkSlug={artwork}
+      />
     </section>
   );
 }
