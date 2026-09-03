@@ -7,6 +7,7 @@ import { printCapability } from "@/lib/images";
 import { formatCents, marginCents, marginPercent } from "@/lib/money";
 import { ProductForm } from "./ProductForm";
 import { VariantPanel } from "./VariantPanel";
+import { ResyncButton } from "./ResyncButton";
 import { deleteProduct } from "../actions";
 
 export const metadata = { title: "Edit product" };
@@ -102,6 +103,8 @@ export default async function EditProductPage({
           >
             Edit artwork →
           </Link>
+
+          {product.providerProductId && <ResyncButton productId={product.id} />}
         </div>
 
         <div>

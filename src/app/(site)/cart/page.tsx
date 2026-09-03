@@ -5,6 +5,7 @@ import { formatCents } from "@/lib/money";
 import { CartLines } from "@/components/CartLines";
 import { CheckoutButton } from "@/components/CheckoutButton";
 import { isStripeConfigured } from "@/lib/payments/stripe";
+import { getShippingSettings, resolveShippingCents } from "@/lib/settings";
 
 export const metadata = { title: "Bag" };
 
@@ -12,7 +13,8 @@ export const metadata = { title: "Bag" };
 export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
-  const cart = await getCart();
+  const [cart, shippingSettings] = await Promise.all([getCart(), getShippingSettings()]);
+  const shippingCents = resolveShippingCents(cart.subtotalCents, shippingSettings);
 
   if (cart.lines.length === 0) {
     return (
@@ -50,7 +52,9 @@ export default async function CartPage() {
         </div>
         <div className="flex justify-between">
           <dt className="text-muted">Shipping</dt>
-          <dd className="text-muted">Calculated at checkout</dd>
+          <dd className={shippingCents === 0 ? "text-bone" : "text-muted"}>
+            {shippingCents === 0 ? "Free" : formatCents(shippingCents)}
+          </dd>
         </div>
         <div className="flex justify-between">
           <dt className="text-muted">Tax</dt>

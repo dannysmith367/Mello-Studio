@@ -6,6 +6,7 @@ import { getCart } from "@/lib/cart";
 import { getCartSessionId } from "@/lib/cart/session";
 import { stripe, isStripeConfigured } from "@/lib/payments/stripe";
 import { generateOrderNumber } from "@/lib/orders";
+import { getShippingSettings, resolveShippingCents } from "@/lib/settings";
 
 export type CheckoutState = { error?: string };
 
@@ -40,6 +41,8 @@ export async function startCheckout(
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const orderNumber = await generateOrderNumber();
+  const shippingSettings = await getShippingSettings();
+  const shippingCents = resolveShippingCents(cart.subtotalCents, shippingSettings);
 
   const order = await db.order.create({
     data: {
@@ -47,7 +50,10 @@ export async function startCheckout(
       email: "", // filled in from Stripe once the customer provides it
       status: "PENDING_PAYMENT",
       subtotalCents: cart.subtotalCents,
-      totalCents: cart.subtotalCents, // shipping and tax added by the webhook
+      // Shipping is our own flat rate, known up front — tax isn't, since
+      // Stripe computes it, so the total gets corrected by the webhook.
+      shippingCents,
+      totalCents: cart.subtotalCents + shippingCents,
       items: {
         create: lines.map((line) => ({
           productId: line.productId,
@@ -84,9 +90,19 @@ export async function startCheckout(
           },
         })),
         // Stripe collects the address; Printify needs it for fulfilment.
+        // US only for now — international shipping isn't priced yet.
         shipping_address_collection: {
-          allowed_countries: ["US", "CA", "GB", "AU", "NZ", "IE"],
+          allowed_countries: ["US"],
         },
+        shipping_options: [
+          {
+            shipping_rate_data: {
+              type: "fixed_amount",
+              fixed_amount: { amount: shippingCents, currency: "usd" },
+              display_name: shippingCents === 0 ? "Free shipping" : "Shipping",
+            },
+          },
+        ],
         phone_number_collection: { enabled: true },
         client_reference_id: order.id,
         metadata: { orderId: order.id, orderNumber },

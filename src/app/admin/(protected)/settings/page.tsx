@@ -1,11 +1,16 @@
-import { getAboutImageUrl, getSocialLinks } from "@/lib/settings";
+import { getAboutImageUrl, getShippingSettings, getSocialLinks } from "@/lib/settings";
 import { SettingsForm } from "./SettingsForm";
 import { AboutImageUpload } from "./AboutImageUpload";
+import { ShippingSettingsForm } from "./ShippingSettingsForm";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [social, aboutImageUrl] = await Promise.all([getSocialLinks(), getAboutImageUrl()]);
+  const [social, aboutImageUrl, shipping] = await Promise.all([
+    getSocialLinks(),
+    getAboutImageUrl(),
+    getShippingSettings(),
+  ]);
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
@@ -43,6 +48,16 @@ export default async function SettingsPage() {
               Storage is not configured — add your Supabase keys to .env.
             </p>
           )}
+        </div>
+      </section>
+
+      <section className="mt-12 border-t border-rule pt-8">
+        <h2 className="font-display text-lg font-medium tracking-tight">Shipping</h2>
+        <p className="mt-1 max-w-xl text-sm text-muted">
+          Applied at checkout and shown in the cart before then. US addresses only for now.
+        </p>
+        <div className="mt-4">
+          <ShippingSettingsForm shipping={shipping} />
         </div>
       </section>
     </>

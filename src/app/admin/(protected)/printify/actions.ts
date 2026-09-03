@@ -5,9 +5,47 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/guard";
 import { PrintifyProvider } from "@/lib/fulfillment/printify";
-import type { PrintifyOption, PrintifyVariant } from "@/lib/fulfillment/printify/client";
+import type { PrintifyImage, PrintifyOption, PrintifyVariant } from "@/lib/fulfillment/printify/client";
 
 const provider = new PrintifyProvider();
+
+/** Printify's own ordering, default shot first, deduped by URL. */
+function orderMockupImages(images: PrintifyImage[]): PrintifyImage[] {
+  const seenSrc = new Set<string>();
+  return [...images]
+    .sort((a, b) => Number(b.is_default ?? false) - Number(a.is_default ?? false))
+    .filter((image) => {
+      if (!image.src || seenSrc.has(image.src)) return false;
+      seenSrc.add(image.src);
+      return true;
+    });
+}
+
+/**
+ * Rows for the mockups belonging to one product's import or re-sync.
+ * `sourceProductId` is what lets a later re-sync replace only this
+ * product's own shots on an artwork that might carry more than one.
+ */
+function mockupRows(
+  orderedImages: PrintifyImage[],
+  artworkId: string,
+  productId: string,
+  title: string
+) {
+  return orderedImages.map((image, index) => ({
+    artworkId,
+    kind: "MOCKUP" as const,
+    storageKey: image.src,
+    url: image.src,
+    altText: title,
+    sortOrder: index,
+    // Printify scopes each shot to the variants it depicts (a colour's
+    // front/back/other, shared across that colour's sizes) — this is what
+    // lets the storefront swap the mockup when a colour is picked.
+    providerVariantIds: (image.variant_ids ?? []).map(String),
+    sourceProductId: productId,
+  }));
+}
 
 /**
  * Resolves a variant's colour and size from Printify's option model.
@@ -207,30 +245,11 @@ export async function importPrintifyProduct(raw: unknown) {
     // Printify's product shots — the actual garment/print in context, not the
     // flat artwork file. Stored on the artwork like any other asset; the
     // default mockup goes first so it's the one storefront pages pick up.
-    const images = remote.images ?? [];
-    const seenSrc = new Set<string>();
-    const orderedImages = [...images]
-      .sort((a, b) => Number(b.is_default ?? false) - Number(a.is_default ?? false))
-      .filter((image) => {
-        if (!image.src || seenSrc.has(image.src)) return false;
-        seenSrc.add(image.src);
-        return true;
-      });
+    const orderedImages = orderMockupImages(remote.images ?? []);
 
     if (orderedImages.length > 0) {
       await db.artworkAsset.createMany({
-        data: orderedImages.map((image, index) => ({
-          artworkId,
-          kind: "MOCKUP" as const,
-          storageKey: image.src,
-          url: image.src,
-          altText: remote.title,
-          sortOrder: index,
-          // Printify scopes each shot to the variants it depicts (a colour's
-          // front/back/other, shared across that colour's sizes) — this is
-          // what lets the storefront swap the mockup when a colour is picked.
-          providerVariantIds: (image.variant_ids ?? []).map(String),
-        })),
+        data: mockupRows(orderedImages, artworkId, product.id, remote.title),
       });
     }
 
@@ -240,5 +259,110 @@ export async function importPrintifyProduct(raw: unknown) {
     return { id: product.id, variantCount: variantData.length };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Import failed." };
+  }
+}
+
+/**
+ * Re-pulls one already-imported product from Printify: fresh mockups and
+ * per-variant costs, without touching what we own — retail price, publish
+ * state, and SKUs. Mockups are only ever captured at import time otherwise,
+ * so a photo swapped in Printify's dashboard afterwards has no effect on
+ * the site until this runs.
+ *
+ * Mockup replacement clears this product's own prior shots plus any
+ * untagged legacy mockup (imported before sourceProductId existed) on the
+ * same artwork. The one case that doesn't perfectly handle: two Printify
+ * products sharing one artwork, imported before this feature shipped and
+ * neither yet re-synced — resyncing one will also clear the other's
+ * untouched legacy mockups, which corrects itself the moment that one is
+ * re-synced too.
+ */
+export async function resyncPrintifyProduct(productId: string) {
+  await requireAdmin();
+
+  if (!provider.isConfigured) {
+    return { error: "Add PRINTIFY_API_KEY and PRINTIFY_SHOP_ID to your environment." };
+  }
+
+  const product = await db.product.findUnique({
+    where: { id: productId },
+    include: { variants: true },
+  });
+  if (!product) return { error: "Product not found." };
+  if (!product.providerProductId) {
+    return { error: "This product wasn't imported from Printify." };
+  }
+
+  try {
+    const remote = await provider.client().getProduct(product.providerProductId);
+    const enabled = (remote.variants ?? []).filter((v) => v.is_enabled !== false);
+    if (enabled.length === 0) {
+      return { error: "That Printify product has no enabled variants." };
+    }
+
+    const costs = enabled.map((v) => v.cost ?? 0).filter((c) => c > 0);
+    const baseCostCents = costs.length > 0 ? Math.min(...costs) : product.baseCostCents;
+
+    await db.product.update({
+      where: { id: product.id },
+      data: { baseCostCents },
+    });
+
+    // Update existing variants in place, matched by provider id — never
+    // create or remove one here, so a variant tied to past orders is
+    // untouched and a brand-new Printify variant doesn't appear with no
+    // history behind it. Only the cost-derived override changes; the base
+    // retail price this override is layered on stays exactly what it was.
+    let updatedVariants = 0;
+    for (const variant of enabled) {
+      const existing = product.variants.find(
+        (v) => v.providerVariantId === String(variant.id)
+      );
+      if (!existing) continue;
+
+      const priceOverrideCents =
+        variant.cost && variant.cost > baseCostCents
+          ? product.retailPriceCents + (variant.cost - baseCostCents)
+          : null;
+
+      await db.productVariant.update({
+        where: { id: existing.id },
+        data: { priceOverrideCents },
+      });
+      updatedVariants++;
+    }
+
+    const orderedImages = orderMockupImages(remote.images ?? []);
+
+    await db.$transaction([
+      db.artworkAsset.deleteMany({
+        where: {
+          artworkId: product.artworkId,
+          kind: "MOCKUP",
+          OR: [{ sourceProductId: null }, { sourceProductId: product.id }],
+        },
+      }),
+      ...(orderedImages.length > 0
+        ? [
+            db.artworkAsset.createMany({
+              data: mockupRows(orderedImages, product.artworkId, product.id, remote.title),
+            }),
+          ]
+        : []),
+    ]);
+
+    revalidatePath("/admin/products");
+    revalidatePath(`/admin/products/${product.id}`);
+    revalidatePath(`/products/${product.slug}`);
+
+    const artwork = await db.artwork.findUnique({
+      where: { id: product.artworkId },
+      select: { slug: true },
+    });
+    if (artwork) revalidatePath(`/artwork/${artwork.slug}`);
+
+    return { mockupCount: orderedImages.length, updatedVariants };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Re-sync failed." };
   }
 }

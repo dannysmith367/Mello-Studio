@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/auth/guard";
 import { storage } from "@/lib/storage";
 import { buildDerivatives, inspect } from "@/lib/images";
 import { requestImageUpload, type RequestImageUploadResult } from "@/lib/uploads";
-import { ABOUT_IMAGE_KEY, SITE_SETTINGS_TAG, SOCIAL_LINK_KEYS } from "@/lib/settings";
+import { ABOUT_IMAGE_KEY, SHIPPING_KEYS, SITE_SETTINGS_TAG, SOCIAL_LINK_KEYS } from "@/lib/settings";
 
 const urlOrEmpty = z.union([z.literal(""), z.string().trim().url("Enter a valid URL")]);
 
@@ -51,6 +51,55 @@ export async function updateSocialLinks(
 
   revalidateTag(SITE_SETTINGS_TAG);
   revalidatePath("/admin/settings");
+
+  return { saved: true };
+}
+
+/** Dollars in, whole cents out — matches how every other money field in the admin works. */
+const dollarsToCents = z
+  .string()
+  .or(z.number())
+  .transform((v) => Math.round(Number(v) * 100))
+  .refine((v) => Number.isFinite(v) && v >= 0, "Enter a valid amount");
+
+const ShippingInput = z.object({
+  flatCents: dollarsToCents,
+  freeThresholdCents: dollarsToCents,
+});
+
+export async function updateShippingSettings(
+  _prev: SettingsState,
+  formData: FormData
+): Promise<SettingsState> {
+  await requireAdmin();
+
+  const parsed = ShippingInput.safeParse({
+    flatCents: formData.get("flat") ?? "0",
+    freeThresholdCents: formData.get("freeThreshold") ?? "0",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the fields and try again." };
+  }
+
+  const { flatCents, freeThresholdCents } = parsed.data;
+
+  await db.$transaction([
+    db.siteSetting.upsert({
+      where: { key: SHIPPING_KEYS.flatCents },
+      update: { value: String(flatCents) },
+      create: { key: SHIPPING_KEYS.flatCents, value: String(flatCents) },
+    }),
+    db.siteSetting.upsert({
+      where: { key: SHIPPING_KEYS.freeThresholdCents },
+      update: { value: String(freeThresholdCents) },
+      create: { key: SHIPPING_KEYS.freeThresholdCents, value: String(freeThresholdCents) },
+    }),
+  ]);
+
+  revalidateTag(SITE_SETTINGS_TAG);
+  revalidatePath("/admin/settings");
+  revalidatePath("/cart");
 
   return { saved: true };
 }

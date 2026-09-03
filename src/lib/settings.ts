@@ -55,3 +55,46 @@ const getCachedAboutImageUrl = unstable_cache(
 export async function getAboutImageUrl(): Promise<string> {
   return getCachedAboutImageUrl();
 }
+
+export const SHIPPING_KEYS = {
+  flatCents: "shipping_flat_cents",
+  freeThresholdCents: "shipping_free_threshold_cents",
+} as const;
+
+export type ShippingSettings = {
+  flatCents: number;
+  /** 0 disables the threshold — nothing ever ships free on price alone. */
+  freeThresholdCents: number;
+};
+
+const getCachedShippingSettings = unstable_cache(
+  async (): Promise<ShippingSettings> => {
+    const rows = await db.siteSetting.findMany({
+      where: { key: { in: Object.values(SHIPPING_KEYS) } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+
+    return {
+      flatCents: Number(byKey.get(SHIPPING_KEYS.flatCents) ?? 0) || 0,
+      freeThresholdCents: Number(byKey.get(SHIPPING_KEYS.freeThresholdCents) ?? 0) || 0,
+    };
+  },
+  ["shipping-settings"],
+  { tags: [SITE_SETTINGS_TAG], revalidate: 300 }
+);
+
+export async function getShippingSettings(): Promise<ShippingSettings> {
+  return getCachedShippingSettings();
+}
+
+/**
+ * The one place that decides what an order actually gets charged for
+ * shipping — used identically by the cart summary and checkout, so what
+ * the customer sees before paying is exactly what they're charged.
+ */
+export function resolveShippingCents(subtotalCents: number, settings: ShippingSettings): number {
+  if (settings.freeThresholdCents > 0 && subtotalCents >= settings.freeThresholdCents) {
+    return 0;
+  }
+  return settings.flatCents;
+}

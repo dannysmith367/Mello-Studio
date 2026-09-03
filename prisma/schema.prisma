@@ -187,6 +187,11 @@ model ArtworkAsset {
   // means the shot isn't scoped to a variant — e.g. imported before this
   // existed, or a provider that doesn't supply the mapping.
   providerVariantIds String[] @default([])
+  // MOCKUP only: which Product's import/re-sync produced this shot. An
+  // artwork can carry more than one product's mockups, so re-syncing one
+  // product must only ever touch its own shots. Null for anything from
+  // before this existed.
+  sourceProductId String?
 
   productsUsingAsPrint Product[]        @relation("ProductPrintAsset")
   variantsUsingAsPrint ProductVariant[] @relation("VariantPrintAsset")

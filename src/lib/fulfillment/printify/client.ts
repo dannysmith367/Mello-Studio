@@ -272,3 +272,4 @@ const OrderSchema = z
 export type PrintifyProduct = z.infer<typeof ProductSchema>;
 export type PrintifyVariant = z.infer<typeof VariantSchema>;
 export type PrintifyOption = z.infer<typeof OptionSchema>;
+export type PrintifyImage = z.infer<typeof ImageSchema>;
