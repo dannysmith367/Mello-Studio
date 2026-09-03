@@ -23,6 +23,11 @@ enum PublishStatus {
   ARCHIVED
 }
 
+enum ArtworkKind {
+  ARTWORK
+  STUDIO
+}
+
 enum AssetKind {
   ORIGINAL // never touched, never served to the browser
   WEB // optimized display image
@@ -132,6 +137,9 @@ model Artwork {
   medium      String? // "Acrylic on canvas", "Graphite on paper"
   status      PublishStatus @default(DRAFT)
   featured    Boolean       @default(false)
+  // STUDIO is a brand asset (e.g. the logo) that exists to carry merch, not
+  // to be browsed as art — kept out of the artwork-first shop views.
+  kind        ArtworkKind   @default(ARTWORK)
 
   seoTitle       String?
   seoDescription String?

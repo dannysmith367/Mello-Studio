@@ -123,6 +123,7 @@ export default async function EditArtworkPage({
                 description: artwork.description,
                 status: artwork.status,
                 featured: artwork.featured,
+                kind: artwork.kind,
                 seoTitle: artwork.seoTitle,
                 seoDescription: artwork.seoDescription,
               }}

@@ -14,7 +14,8 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "sessions:prune": "tsx scripts/prune-sessions.ts",
     "db:seed-types": "tsx scripts/seed-product-types.ts",
-    "carts:prune": "tsx scripts/prune-carts.ts"
+    "carts:prune": "tsx scripts/prune-carts.ts",
+    "printify:unstick": "tsx scripts/unstick-printify.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

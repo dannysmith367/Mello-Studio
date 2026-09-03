@@ -12,6 +12,7 @@ type Artwork = {
   description: string | null;
   status: string;
   featured: boolean;
+  kind: string;
   seoTitle: string | null;
   seoDescription: string | null;
 };
@@ -80,6 +81,16 @@ export function EditForm({ artwork }: { artwork: Artwork }) {
         />
         <span className="text-sm">Feature on the landing page</span>
       </label>
+
+      <label htmlFor="kind" className="eyebrow mt-5 block">Kind</label>
+      <select id="kind" name="kind" defaultValue={artwork.kind} className={field}>
+        <option value="ARTWORK">Artwork — browsable as a piece</option>
+        <option value="STUDIO">Studio asset — brand art that only carries merch</option>
+      </select>
+      <p className="mt-2 font-data text-[0.625rem] text-muted">
+        Studio assets (like the logo) stay out of the shop, apparel, print and
+        homepage browsing — their products show up on /merch instead.
+      </p>
 
       <fieldset className="mt-8 border-t border-rule pt-6">
         <legend className="eyebrow">Search listing</legend>

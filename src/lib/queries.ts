@@ -23,9 +23,12 @@ export async function getFeaturedArtwork() {
   });
 }
 
-export async function getPublishedArtworks(limit?: number) {
+export async function getPublishedArtworks(
+  limit?: number,
+  opts: { kind?: "ARTWORK" | "STUDIO" } = {}
+) {
   return db.artwork.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: "PUBLISHED", ...(opts.kind ? { kind: opts.kind } : {}) },
     select: { ...publishedArtworkSelect, assets: true },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     take: limit,
@@ -85,7 +88,9 @@ export async function getArtworksWithProducts({
   };
 
   const artworks = await db.artwork.findMany({
-    where: { status: "PUBLISHED", products: { some: productFilter } },
+    // STUDIO pieces (e.g. the logo) exist to carry merch, not to be browsed
+    // as art, so every artwork-first listing excludes them.
+    where: { status: "PUBLISHED", kind: "ARTWORK", products: { some: productFilter } },
     select: {
       id: true,
       slug: true,
@@ -101,6 +106,23 @@ export async function getArtworksWithProducts({
     ...artwork,
     fromPriceCents: Math.min(...products.map((p) => p.retailPriceCents)),
   }));
+}
+
+/**
+ * Products made from STUDIO artwork (brand assets like the logo) — listed
+ * directly as product tiles on /merch rather than grouped under an artwork
+ * tile, since there's no piece of art to browse behind them.
+ */
+export async function getStudioProducts() {
+  return db.product.findMany({
+    where: { published: true, artwork: { kind: "STUDIO" } },
+    include: {
+      productType: true,
+      artwork: { include: { assets: true } },
+      variants: { where: { active: true } },
+    },
+    orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+  });
 }
 
 /** Types that can actually show up in the /shop format row — published work in them, and a tile image set. */

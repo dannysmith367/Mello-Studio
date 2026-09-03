@@ -11,7 +11,7 @@ const INTRO =
 
 export default async function HomePage() {
   const [artworks, products, collections] = await Promise.all([
-    getPublishedArtworks(8),
+    getPublishedArtworks(8, { kind: "ARTWORK" }),
     getProductsByCategory(),
     getPublishedCollections(),
   ]);

@@ -142,6 +142,7 @@ const UpdateInput = z.object({
   description: z.string().max(4000).optional(),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
   featured: z.coerce.boolean(),
+  kind: z.enum(["ARTWORK", "STUDIO"]),
   seoTitle: z.string().max(200).optional(),
   seoDescription: z.string().max(400).optional(),
 });
@@ -157,6 +158,7 @@ export async function updateArtwork(_prev: unknown, formData: FormData) {
     description: formData.get("description") ?? undefined,
     status: formData.get("status"),
     featured: formData.get("featured") === "on",
+    kind: formData.get("kind"),
     seoTitle: formData.get("seoTitle") ?? undefined,
     seoDescription: formData.get("seoDescription") ?? undefined,
   });
@@ -179,6 +181,10 @@ export async function updateArtwork(_prev: unknown, formData: FormData) {
 
   revalidatePath("/admin/artwork");
   revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/apparel");
+  revalidatePath("/prints");
+  revalidatePath("/merch");
   return { saved: true };
 }
 

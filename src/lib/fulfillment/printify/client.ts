@@ -103,40 +103,57 @@ const all: z.input<typeof ProductPageSchema>["data"] = [];
   }
 
   /**
+   * POSTs a publish callback that returns 200 with no body on success,
+   * which is why this bypasses the JSON-parsing request() helper. Shared by
+   * publishingSucceeded and publishingFailed — the only difference between
+   * them is the endpoint and the payload shape.
+   */
+  private async postPublishCallback(path: string, body: unknown): Promise<void> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json;charset=utf-8",
+        "User-Agent": "MelloStudio/1.0",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      throw new PrintifyError(response.status, path, responseBody.slice(0, 400));
+    }
+  }
+
+  /**
    * Confirms a product's publish to Printify.
    *
    * Every product pushed to a Printify shop is created in a "publishing"
    * state and waits for the connected sales channel to call this endpoint —
    * without it, the product stays stuck mid-publish in Printify's UI even
-   * though it already exists on our storefront. Printify returns 200 with
-   * no body on success, so this bypasses the JSON-parsing request() helper.
+   * though it already exists on our storefront.
    */
   async publishingSucceeded(
     productId: string,
     external: { id: string; handle: string }
   ): Promise<void> {
-    const response = await fetch(
-      `${BASE_URL}/shops/${this.shopId}/products/${productId}/publishing_succeeded.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json;charset=utf-8",
-          "User-Agent": "MelloStudio/1.0",
-        },
-        body: JSON.stringify({ external }),
-        cache: "no-store",
-      }
+    return this.postPublishCallback(
+      `/shops/${this.shopId}/products/${productId}/publishing_succeeded.json`,
+      { external }
     );
+  }
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new PrintifyError(
-        response.status,
-        `/shops/${this.shopId}/products/${productId}/publishing_succeeded.json`,
-        body.slice(0, 400)
-      );
-    }
+  /**
+   * Releases a product stuck in the "publishing" lock without confirming
+   * it — the other half of the same handshake as publishingSucceeded, for
+   * when a publish should never have been treated as complete.
+   */
+  async publishingFailed(productId: string, reason: string): Promise<void> {
+    return this.postPublishCallback(
+      `/shops/${this.shopId}/products/${productId}/publishing_failed.json`,
+      { reason }
+    );
   }
 }
 
