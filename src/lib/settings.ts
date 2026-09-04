@@ -98,3 +98,40 @@ export function resolveShippingCents(subtotalCents: number, settings: ShippingSe
   }
   return settings.flatCents;
 }
+
+export const PAGE_INTRO_KEYS = {
+  shop: "shop_intro",
+  apparel: "apparel_intro",
+  prints: "prints_intro",
+} as const;
+
+export type PageIntros = Record<keyof typeof PAGE_INTRO_KEYS, string>;
+
+/** Shown until an admin sets something in /admin/settings, and again the moment a field is cleared back to empty. */
+export const PAGE_INTRO_DEFAULTS: PageIntros = {
+  shop: "Every piece currently available, on cloth and paper.",
+  apparel: "Artwork printed on heavyweight cotton. Cut for a relaxed fit.",
+  prints:
+    "Reproductions of Mello’s original paintings and drawings, printed on archival stock and shipped flat in a rigid mailer.",
+};
+
+const getCachedPageIntros = unstable_cache(
+  async (): Promise<PageIntros> => {
+    const rows = await db.siteSetting.findMany({
+      where: { key: { in: Object.values(PAGE_INTRO_KEYS) } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+
+    return {
+      shop: byKey.get(PAGE_INTRO_KEYS.shop) || PAGE_INTRO_DEFAULTS.shop,
+      apparel: byKey.get(PAGE_INTRO_KEYS.apparel) || PAGE_INTRO_DEFAULTS.apparel,
+      prints: byKey.get(PAGE_INTRO_KEYS.prints) || PAGE_INTRO_DEFAULTS.prints,
+    };
+  },
+  ["page-intros"],
+  { tags: [SITE_SETTINGS_TAG], revalidate: 300 }
+);
+
+export async function getPageIntros(): Promise<PageIntros> {
+  return getCachedPageIntros();
+}

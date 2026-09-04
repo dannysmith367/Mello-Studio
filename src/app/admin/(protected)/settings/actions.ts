@@ -7,7 +7,13 @@ import { requireAdmin } from "@/lib/auth/guard";
 import { storage } from "@/lib/storage";
 import { buildDerivatives, inspect } from "@/lib/images";
 import { requestImageUpload, type RequestImageUploadResult } from "@/lib/uploads";
-import { ABOUT_IMAGE_KEY, SHIPPING_KEYS, SITE_SETTINGS_TAG, SOCIAL_LINK_KEYS } from "@/lib/settings";
+import {
+  ABOUT_IMAGE_KEY,
+  PAGE_INTRO_KEYS,
+  SHIPPING_KEYS,
+  SITE_SETTINGS_TAG,
+  SOCIAL_LINK_KEYS,
+} from "@/lib/settings";
 
 const urlOrEmpty = z.union([z.literal(""), z.string().trim().url("Enter a valid URL")]);
 
@@ -51,6 +57,50 @@ export async function updateSocialLinks(
 
   revalidateTag(SITE_SETTINGS_TAG);
   revalidatePath("/admin/settings");
+
+  return { saved: true };
+}
+
+const PageIntroInput = z.object({
+  shop: z.string().max(400).optional(),
+  apparel: z.string().max(400).optional(),
+  prints: z.string().max(400).optional(),
+});
+
+export async function updatePageIntros(
+  _prev: SettingsState,
+  formData: FormData
+): Promise<SettingsState> {
+  await requireAdmin();
+
+  const parsed = PageIntroInput.safeParse({
+    shop: formData.get("shop") ?? "",
+    apparel: formData.get("apparel") ?? "",
+    prints: formData.get("prints") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the fields and try again." };
+  }
+
+  const entries = Object.entries(PAGE_INTRO_KEYS) as [keyof typeof PAGE_INTRO_KEYS, string][];
+
+  await db.$transaction(
+    entries.map(([field, key]) => {
+      const value = parsed.data[field]?.trim() ?? "";
+      return db.siteSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      });
+    })
+  );
+
+  revalidateTag(SITE_SETTINGS_TAG);
+  revalidatePath("/admin/settings");
+  revalidatePath("/shop");
+  revalidatePath("/apparel");
+  revalidatePath("/prints");
 
   return { saved: true };
 }

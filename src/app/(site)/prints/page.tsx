@@ -1,4 +1,5 @@
 import { ProductCatalog } from "@/components/ProductCatalog";
+import { getPageIntros } from "@/lib/settings";
 
 export const metadata = {
   title: "Prints",
@@ -16,7 +17,7 @@ export default async function PrintsPage({
 }: {
   searchParams: Promise<{ type?: string; artwork?: string }>;
 }) {
-  const { type, artwork } = await searchParams;
+  const [{ type, artwork }, intros] = await Promise.all([searchParams, getPageIntros()]);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
@@ -25,10 +26,7 @@ export default async function PrintsPage({
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight sm:text-5xl">
           Prints
         </h1>
-        <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted">
-          Reproductions of Mello&rsquo;s original paintings and drawings, printed
-          on archival stock and shipped flat in a rigid mailer.
-        </p>
+        <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted">{intros.prints}</p>
 
         <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 font-data text-[0.6875rem] sm:grid-cols-4">
           <div>

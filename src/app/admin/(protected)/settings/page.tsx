@@ -1,15 +1,17 @@
-import { getAboutImageUrl, getShippingSettings, getSocialLinks } from "@/lib/settings";
+import { getAboutImageUrl, getPageIntros, getShippingSettings, getSocialLinks } from "@/lib/settings";
 import { SettingsForm } from "./SettingsForm";
 import { AboutImageUpload } from "./AboutImageUpload";
 import { ShippingSettingsForm } from "./ShippingSettingsForm";
+import { PageIntroForm } from "./PageIntroForm";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [social, aboutImageUrl, shipping] = await Promise.all([
+  const [social, aboutImageUrl, shipping, intros] = await Promise.all([
     getSocialLinks(),
     getAboutImageUrl(),
     getShippingSettings(),
+    getPageIntros(),
   ]);
 
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -58,6 +60,16 @@ export default async function SettingsPage() {
         </p>
         <div className="mt-4">
           <ShippingSettingsForm shipping={shipping} />
+        </div>
+      </section>
+
+      <section className="mt-12 border-t border-rule pt-8">
+        <h2 className="font-display text-lg font-medium tracking-tight">Page intros</h2>
+        <p className="mt-1 max-w-xl text-sm text-muted">
+          The intro sentence under the heading on /shop, /apparel and /prints.
+        </p>
+        <div className="mt-4">
+          <PageIntroForm intros={intros} />
         </div>
       </section>
     </>

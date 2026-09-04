@@ -1,4 +1,5 @@
 import { CatalogPage } from "@/components/CatalogPage";
+import { getPageIntros } from "@/lib/settings";
 
 export const metadata = { title: "Shop" };
 
@@ -7,13 +8,13 @@ export default async function ShopPage({
 }: {
   searchParams: Promise<{ type?: string }>;
 }) {
-  const { type } = await searchParams;
+  const [{ type }, intros] = await Promise.all([searchParams, getPageIntros()]);
 
   return (
     <CatalogPage
       eyebrow="Everything"
       title="Shop"
-      intro="Every piece currently available, on cloth and paper."
+      intro={intros.shop}
       productTypeSlug={type}
       showFormatRow
     />

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getArtworkBySlug } from "@/lib/queries";
 import { displayAsset, productMockups } from "@/lib/assets";
-import { AddToBag } from "@/components/AddToBag";
+import { ProductCard } from "@/components/ProductCard";
 
 export async function generateMetadata({
   params,
@@ -36,29 +36,16 @@ export default async function ArtworkPage({
   const artwork = await getArtworkBySlug(slug);
   if (!artwork || artwork.status !== "PUBLISHED") notFound();
 
-  const asset = displayAsset(artwork.assets);
-
-  // One section per format (tee, hoodie, print…), each with its own
-  // variants and its own add-to-bag — a piece sold five ways is one page.
-  const groups = new Map<
-    string,
-    { typeName: string; products: (typeof artwork.products)[number][] }
-  >();
-  for (const product of artwork.products) {
-    const key = product.productType.id;
-    const group = groups.get(key);
-    if (group) group.products.push(product);
-    else groups.set(key, { typeName: product.productType.name, products: [product] });
-  }
+  const heroAsset = displayAsset(artwork.assets);
 
   return (
     <article className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">
       <div className="grid gap-10 md:grid-cols-2 md:gap-16">
-        <div className="relative aspect-[4/5] overflow-hidden bg-surface md:sticky md:top-24 md:self-start">
-          {asset?.url && (
+        <div className="relative aspect-[4/5] overflow-hidden bg-surface">
+          {heroAsset?.url && (
             <Image
-              src={asset.url}
-              alt={asset.altText ?? artwork.title}
+              src={heroAsset.url}
+              alt={heroAsset.altText ?? artwork.title}
               fill
               sizes="(max-width: 768px) 100vw, 45vw"
               className="object-cover"
@@ -83,62 +70,41 @@ export default async function ArtworkPage({
               {artwork.description}
             </p>
           )}
-
-          <div className="mt-10 space-y-10 border-t border-rule pt-8">
-            {groups.size === 0 ? (
-              <p className="font-data text-xs text-muted">Nothing available in this piece yet.</p>
-            ) : (
-              [...groups.values()].map((group) => (
-                <div key={group.typeName}>
-                  <p className="eyebrow">{group.typeName}</p>
-                  <div className="mt-5 space-y-8">
-                    {group.products.map((product) => {
-                      // Prints and posters are the artwork itself — the hero
-                      // image already shows them, so no mockups exist and
-                      // none is shown here. Apparel gets its default shot.
-                      const defaultMockup = productMockups(
-                        artwork.assets,
-                        product.variants.map((v) => v.providerVariantId)
-                      )[0];
-
-                      return (
-                        <div key={product.id} className="flex gap-4">
-                          {defaultMockup?.url && (
-                            <div className="relative h-24 w-24 shrink-0 overflow-hidden bg-surface">
-                              <Image
-                                src={defaultMockup.url}
-                                alt={defaultMockup.altText ?? product.name}
-                                fill
-                                sizes="96px"
-                                className="object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            {group.products.length > 1 && (
-                              <p className="text-sm font-medium">{product.name}</p>
-                            )}
-                            <AddToBag
-                              productId={product.id}
-                              basePriceCents={product.retailPriceCents}
-                              variants={product.variants.map((v) => ({
-                                id: v.id,
-                                size: v.size,
-                                color: v.color,
-                                colorHex: v.colorHex,
-                                priceOverrideCents: v.priceOverrideCents,
-                              }))}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
+      </div>
+
+      <div className="mt-16 border-t border-rule pt-10">
+        <p className="eyebrow">Available as</p>
+
+        {artwork.products.length === 0 ? (
+          <p className="mt-4 font-data text-xs text-muted">Nothing available in this piece yet.</p>
+        ) : (
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {artwork.products.map((product) => {
+              // A product's own default mockup (Printify's ordering) when it
+              // has one — prints don't, so they fall back to the artwork
+              // itself, the same rule every other grid in the site follows.
+              const mockups = productMockups(
+                artwork.assets,
+                product.variants.map((v) => v.providerVariantId)
+              );
+              const asset = mockups[0] ?? heroAsset;
+
+              return (
+                <ProductCard
+                  key={product.id}
+                  href={`/products/${product.slug}`}
+                  imageUrl={asset?.url ?? null}
+                  imageUnoptimized={asset?.kind === "MOCKUP"}
+                  alt={asset?.altText ?? product.name}
+                  name={product.name}
+                  eyebrow={product.productType.name}
+                  priceCents={product.retailPriceCents}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </article>
   );

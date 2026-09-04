@@ -23,10 +23,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/brand/og-default.png"],
   },
-  icons: {
-    icon: [{ url: "/brand/icon-32.png", sizes: "32x32", type: "image/png" }],
-    apple: [{ url: "/brand/icon-180.png", sizes: "180x180" }],
-  },
+  // Favicon and apple-touch-icon come from icon.png / apple-icon.png in
+  // this same directory — Next's file-based convention picks those up
+  // automatically, so they're deliberately not repeated here.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

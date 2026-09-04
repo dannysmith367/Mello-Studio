@@ -56,7 +56,7 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
             imageUnoptimized={asset?.kind === "MOCKUP"}
             alt={asset?.altText ?? product.name}
             name={product.name}
-            artworkTitle={product.artwork.title}
+            eyebrow={product.artwork.title}
             priceCents={product.retailPriceCents}
             priority={index < 4}
           />
