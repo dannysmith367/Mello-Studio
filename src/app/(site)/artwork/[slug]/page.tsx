@@ -86,6 +86,7 @@ export default async function ArtworkPage({
               // itself, the same rule every other grid in the site follows.
               const mockups = productMockups(
                 artwork.assets,
+                product.id,
                 product.variants.map((v) => v.providerVariantId)
               );
               const asset = mockups[0] ?? heroAsset;

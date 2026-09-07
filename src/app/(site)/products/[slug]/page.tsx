@@ -15,6 +15,7 @@ export async function generateMetadata({
 
   const mockups = productMockups(
     product.artwork.assets,
+    product.id,
     product.variants.map((v) => v.providerVariantId)
   );
   const asset = mockups[0] ?? displayAsset(product.artwork.assets);
@@ -53,6 +54,7 @@ export default async function ProductPage({
   // this only ever finds shots for a product that actually has them (apparel).
   const mockups = productMockups(
     product.artwork.assets,
+    product.id,
     product.variants.map((v) => v.providerVariantId)
   );
   const fallback = displayAsset(product.artwork.assets);

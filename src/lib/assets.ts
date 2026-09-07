@@ -43,28 +43,42 @@ export function thumbnailAsset<T extends AssetLike>(
   );
 }
 
-type MockupAsset = AssetLike & { sortOrder: number; providerVariantIds: string[] };
+type MockupAsset = AssetLike & {
+  sortOrder: number;
+  providerVariantIds: string[];
+  sourceProductId: string | null;
+};
 
 /**
  * All mockups belonging to one product, in Printify's order (default shot
- * first). Scoped to the product's own variants where that mapping exists —
- * an artwork can carry more than one product's mockups — and falls back to
- * every mockup on the artwork when no variant is tagged (e.g. a
- * manually-created product, or mockups imported before this existed).
+ * first). Scoped by `sourceProductId` — set on import/re-sync — since an
+ * artwork can carry more than one product's mockups and Printify variant
+ * ids are only unique within one blueprint+provider combo: two unrelated
+ * products on the same artwork can share the same variant id, so matching
+ * on that alone can hand one product's shot to another. Mockups from
+ * before `sourceProductId` existed (null) fall back to the old
+ * variant-id matching so those old imports keep working.
  */
 export function productMockups<T extends MockupAsset>(
   assets: T[],
+  productId: string,
   providerVariantIds: (string | null)[]
 ): T[] {
   const mockups = assets.filter((a) => a.kind === "MOCKUP");
-  const ids = new Set(providerVariantIds.filter((id): id is string => Boolean(id)));
 
+  const own = mockups.filter((m) => m.sourceProductId === productId);
+  if (own.length > 0) {
+    return [...own].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  const legacy = mockups.filter((m) => m.sourceProductId === null);
+  const ids = new Set(providerVariantIds.filter((id): id is string => Boolean(id)));
   const scoped =
     ids.size > 0
-      ? mockups.filter(
+      ? legacy.filter(
           (m) => m.providerVariantIds.length === 0 || m.providerVariantIds.some((id) => ids.has(id))
         )
-      : mockups;
+      : legacy;
 
   return [...scoped].sort((a, b) => a.sortOrder - b.sortOrder);
 }

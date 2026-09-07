@@ -1,5 +1,5 @@
 import { ProductCard } from "./ProductCard";
-import { thumbnailAsset, productMockups } from "@/lib/assets";
+import { displayAsset, productMockups } from "@/lib/assets";
 
 type DisplayableAsset = {
   kind: string;
@@ -9,6 +9,7 @@ type DisplayableAsset = {
   height: number | null;
   sortOrder: number;
   providerVariantIds: string[];
+  sourceProductId: string | null;
 };
 
 export type ProductCardData = {
@@ -40,13 +41,10 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
         // has one; otherwise the flat artwork file, same as everywhere else.
         const mockups = productMockups(
           product.artwork.assets,
+          product.id,
           product.variants.map((v) => v.providerVariantId)
         );
-        const asset =
-          mockups[0] ??
-          thumbnailAsset(product.artwork.assets, {
-            preferMockup: product.productType.category === "APPAREL",
-          });
+        const asset = mockups[0] ?? displayAsset(product.artwork.assets);
 
         return (
           <ProductCard
