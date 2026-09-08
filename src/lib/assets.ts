@@ -85,10 +85,13 @@ export function productMockups<T extends MockupAsset>(
 
 /**
  * Narrows a product's mockup gallery to the shots depicting one specific
- * variant (e.g. the colour just picked). Falls back to the full gallery
- * when nothing matches that variant, rather than showing nothing. Only
- * needs the variant tagging, not a full asset shape, since by this point
- * the gallery may already have been mapped down to plain {url, altText}.
+ * variant (e.g. the colour just picked). Falls back to the product's
+ * default shot — `mockups[0]`, already sorted default-first by
+ * `productMockups` — when no shot is tagged for that variant, rather than
+ * showing nothing or silently reverting to every colour's shots at once.
+ * Only needs the variant tagging, not a full asset shape, since by this
+ * point the gallery may already have been mapped down to plain
+ * {url, altText}.
  */
 export function mockupsForVariant<T extends { providerVariantIds: string[] }>(
   mockups: T[],
@@ -96,5 +99,6 @@ export function mockupsForVariant<T extends { providerVariantIds: string[] }>(
 ): T[] {
   if (!providerVariantId) return mockups;
   const matched = mockups.filter((m) => m.providerVariantIds.includes(providerVariantId));
-  return matched.length > 0 ? matched : mockups;
+  if (matched.length > 0) return matched;
+  return mockups.length > 0 ? [mockups[0]] : mockups;
 }

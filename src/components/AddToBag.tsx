@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addToCart } from "@/lib/cart/actions";
 import { formatCents } from "@/lib/money";
+import { sortSizes } from "@/lib/sizes";
 
 type Variant = {
   id: string;
@@ -43,7 +44,7 @@ export function AddToBag({
       variants.filter((v) => v.color).map((v) => [v.color!, v.colorHex])
     ).entries(),
   ];
-  const sizes = [...new Set(variants.map((v) => v.size).filter(Boolean))] as string[];
+  const sizes = sortSizes([...new Set(variants.map((v) => v.size).filter(Boolean))] as string[]);
 
   const [color, setColor] = useState<string | null>(colors[0]?.[0] ?? null);
   const [size, setSize] = useState<string | null>(sizes[0] ?? null);
@@ -53,10 +54,16 @@ export function AddToBag({
       (v) => (color ? v.color === color : true) && (size ? v.size === size : true)
     ) ?? (colors.length === 0 && sizes.length === 0 ? variants[0] : undefined);
 
+  // Falls back to any variant of the picked colour so the gallery still
+  // swaps to match that colour even when the current size isn't offered in
+  // it — `selected` (and so the add-to-bag button) still requires the exact
+  // combination to exist.
+  const preview = selected ?? (color ? variants.find((v) => v.color === color) : undefined) ?? null;
+
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on identity, not the callback prop
   useEffect(() => {
-    onVariantChange?.(selected ?? null);
-  }, [selected?.id]);
+    onVariantChange?.(preview);
+  }, [preview?.id]);
 
   const price = selected?.priceOverrideCents ?? basePriceCents;
 

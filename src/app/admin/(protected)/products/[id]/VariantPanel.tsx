@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { addVariant, deleteVariant, toggleVariant } from "../actions";
 import { formatCents } from "@/lib/money";
+import { compareSizes } from "@/lib/sizes";
 
 type Variant = {
   id: string;
@@ -42,6 +43,8 @@ export function VariantPanel({
     {} as { error?: string; saved?: boolean }
   );
 
+  const sortedVariants = [...variants].sort((a, b) => compareSizes(a.size, b.size));
+
   return (
     <section className="mt-12 border-t border-rule pt-8">
       <h2 className="font-display text-lg font-medium tracking-tight">Variants</h2>
@@ -64,7 +67,7 @@ export function VariantPanel({
               </tr>
             </thead>
             <tbody>
-              {variants.map((v) => (
+              {sortedVariants.map((v) => (
                 <tr key={v.id} className="border-b border-rule last:border-0">
                   <td className="px-3 py-2 font-data text-[0.6875rem]">{v.sku}</td>
                   <td className="px-3 py-2">{v.size ?? "—"}</td>

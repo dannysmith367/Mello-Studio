@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { displayAsset, mockupsForVariant, productMockups } from "@/lib/assets";
 import { getCartSessionId } from "./session";
 
 export type CartLine = {
@@ -61,6 +62,7 @@ export async function getCart(): Promise<CartSummary> {
             include: {
               productType: true,
               artwork: { include: { assets: true } },
+              variants: { select: { providerVariantId: true } },
             },
           },
         },
@@ -78,9 +80,16 @@ export async function getCart(): Promise<CartSummary> {
     if (!item.product.published) unavailable = "No longer available";
     else if (!item.variant.active) unavailable = "That option sold out";
 
-    const thumb =
-      item.product.artwork.assets.find((a) => a.kind === "THUMBNAIL") ??
-      item.product.artwork.assets.find((a) => a.kind === "WEB");
+    // Show the mockup matching the colour actually in the bag, not just any
+    // shot of the product — same rule as the product detail page gallery.
+    const mockups = productMockups(
+      item.product.artwork.assets,
+      item.productId,
+      item.product.variants.map((v) => v.providerVariantId)
+    );
+    const image =
+      mockupsForVariant(mockups, item.variant.providerVariantId)[0] ??
+      displayAsset(item.product.artwork.assets);
 
     return {
       id: item.id,
@@ -92,7 +101,7 @@ export async function getCart(): Promise<CartSummary> {
       variantId: item.variantId,
       variantLabel: variantLabel(item.variant),
       sku: item.variant.sku,
-      imageUrl: thumb?.url ?? null,
+      imageUrl: image?.url ?? null,
       unitPriceCents,
       lineTotalCents: unitPriceCents * item.quantity,
       unavailable,
